@@ -1,6 +1,6 @@
 # HalfGripHelicopter
 
-**Version 0.1.2** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
+**Version 0.1.3** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
 
 A chassis item, **Helicopter**, that turns your car into a helicopter. Made for the
 [Open World](https://github.com/htubdawg/HalfGripOpenWorld) mod, but it works in any race.
@@ -18,9 +18,11 @@ A chassis item, **Helicopter**, that turns your car into a helicopter. Made for 
   - **Collective** (yellow, left lever): how hard the rotor lifts. **Half way (the yellow mark) hovers**, above climbs, below sinks.
   - **Throttle** (red, right lever): the rotor's speed. It takes a few seconds to spin up. The rev dial and engine sound follow it.
   - The levers stay where you leave them.
-- **It looks like one.** From outside the car's body and wheels are gone: a fuselage with a glass nose and door windows, a tail boom with
+- **It looks like one.** From outside the car's body and wheels are gone: a fuselage with a glass nose and door windows and an engine housing on top, a tail boom with
   a fin and tail rotor, skids, and a main rotor that spins with the throttle. From the seat you look out through the
-  glass from inside a cabin with walls, a floor and window frames.
+  windscreen and door windows from inside a cabin with a roof, walls, a floor, two seats and an instrument panel.
+
+  ![The helicopter from outside and from the seat](docs/model.png)
 - **No keys.** W and S do nothing. Everything is done with the hand.
 - In the **Open World**, land in a garage and drop the collective to the bottom, then let go of it. That opens the garage (instead of
   letting go of the shifter in neutral). The same signs you on to an event.

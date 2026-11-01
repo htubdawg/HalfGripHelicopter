@@ -7,11 +7,18 @@ namespace HalfGripHelicopter
 	/// One sheet of the mod's pictures, from its own drawing code: the shop icon at the game's body-card size, then a mock of the
 	/// cockpit (stick at rest, pushed forward-left and held; collective at the hover mark, throttle full). Exits 1 if the icon is blank.
 	///   dotnet run -c Release --project tools/preview -- out.png
+	/// and the helicopter's shape from outside and from the seat (<see cref="Model"/>):
+	///   dotnet run -c Release --project tools/preview -- --model model.png
 	/// </summary>
 	internal static class Program
 	{
 		private static int Main(string[] args)
 		{
+			if (args.Length > 0 && args[0] == "--model")
+			{
+				Model.Sheet(args.Length > 1 ? args[1] : "model.png");
+				return 0;
+			}
 			string path = args.Length > 0 ? args[0] : "preview.png";
 			Canvas sheet = new Canvas(200, 90);
 			sheet.Rect(0, 0, sheet.Width, sheet.Height, new Color32(58, 52, 50, 255));

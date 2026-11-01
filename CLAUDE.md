@@ -21,7 +21,8 @@ cockpit's wheel and shifter with a stick, a collective and a throttle, and flies
 | `HeliDriver.cs` | Every 0.25 s: the player's `CarLink` + item fitted → builds cockpit, flight, rotor; takes them off when not; `DriveCar` in place of the car's driving (brakes when parked, `engineIndicator` = rotor speed) |
 | `Cockpit.cs` | Hides wheel, all shifters, handbrake (renderers + `InteriorCollider`s off, objects alive, re-hidden every 0.5 s); stick = `DoubleLinearObject` (spring off while held, on when let go, right click toggles `frozen`), levers = `LinearObject` with no spring; placed and sized from the hidden parts' bounds and the dash's pixel size; shaft redrawn in whole pixels |
 | `Flight.cs` | The flight model (see its summary): thrust `m g 2 C rpm²`, climb-rate damping `g/ClimbRate`, attitude hold (5 rad/s, critically damped), yaw from the stick + tail fin, drag balanced at `TopSpeed` |
-| `Airframe.cs` | The outside: the car's skin models (`CarSkinController.carModels`) and wheel meshes hidden (re-hidden every 0.5 s, shown again on removal), a helicopter on the body's layer: the fuselage a generated egg mesh built round the cockpit view's world camera (the car's child camera tagged MainCamera, `CarBodyPivot/Head`), outer skin facing out (body, glass, frames; back faces culled, so glass is clear from inside), inner cabin skin facing in with holes at the windows (walls and floor speckle-textured), drawn only for that camera (`beginCameraRendering`, so the rear-view mirror sees out); the rest primitives (colliders removed, plain URP Lit), skids at the wheels' bottom; rotors spin with `Flight.Rpm` |
+| `Shape.cs` | The helicopter's geometry as plain triangles per `Paint` (Unity's managed structs only, so `tools/preview` draws it too): `Measure` sizes the pod from the car (length >= 0.62 car lengths, height 0.4-0.5 of the length, head 57% up and 40% back), `Build` gives the outer skin + outside parts, the cabin (inner skin facing in with holes at the glass, floor, seats, panel), the main and tail rotors. No `Quaternion.Euler` (native; use `AboutX`/`AboutY`) |
+| `Airframe.cs` | Hides the car's skin models (`CarSkinController.carModels`) and wheel meshes (re-hidden every 0.5 s, shown again on removal); turns `Shape`'s pieces into meshes on the body's layer, one URP Lit material per paint, `_Cull` Back, speckle texture inside; the head is the car's child camera tagged MainCamera; the cabin is always drawn except for the camera named `RearViewCamera` (`beginCameraRendering`); rotors spin with `Flight.Rpm` |
 | `Art.cs` | `Canvas` (pixel drawing) and the pictures: icon, grip, boot, slot, handles |
 
 ## Rules that matter
@@ -47,6 +48,9 @@ cockpit's wheel and shifter with a stick, a collective and a throttle, and flies
   ```
 - Pictures: `dotnet run -c Release --project tools/preview -p:Refs=<halfgriprefs> -- docs/preview.png` (exits 1 on a blank icon).
   Look at it after any art change.
+- Model: `dotnet run -c Release --project tools/preview -p:Refs=<halfgriprefs> -- --model docs/model.png` draws `Shape` with back-face
+  culling and depth, from outside and from the head (ahead, left, right, the mirror back), for the game's car and a smaller one.
+  **Look at it after any change to the shape**, before the owner does.
 - In game (the owner tests): copy `Helicopter/` to `<game>\BepInEx\HalfGripMods\`, set `Debug.VerboseLog=true`, read
   `BepInEx\LogOutput.log` (look for `cockpit built`, `airframe built`, `on the car`, `linked to the Open World's garages`; a failure logs `could not put
   the helicopter on the car` once a race).
@@ -62,12 +66,15 @@ cockpit's wheel and shifter with a stick, a collective and a throttle, and flies
   built). Compiles; **not tested in game.**
 - **0.1.1 test** (owner, screenshots): flies; the model was squashed flat (fuselage sized from the car's height); the cockpit
   camera sat inside the canopy with no cabin modelled, and the glass was opaque from inside.
-- **0.1.2** on `claude/practical-thompson-8lxknd`: fuselage sized from the car's width and the driver's head (head a little over
-  half way up, behind the middle); one egg mesh with glass nose, chin and door windows and frames; a textured cabin inside drawn
-  only for the cockpit camera; `_Cull` set to Back on every material. Compiles; **not tested in game.**
-- **Waiting on the owner:** in-game test of 0.1.2: the outside shape, the view from the seat (windscreen and door windows clear,
-  walls and floor seen, rotor through the glass top), the rear-view mirror. Log line `airframe built ... head ... fuselage ...`
-  (a `(guessed)` head means the camera was not found). Earlier checks still open: controls placement and grab, lift-off at
-  about half collective, hover, landing, the garage on dropping the collective, other items refused.
+- **0.1.2** (owner's test): the inside was see-through (the cabin was drawn only for a camera it took for the cockpit's, and in game
+  that never matched) and the pod was a ball (height from the car's width and the head's height). Neither had been looked at.
+- **0.1.3** on `claude/practical-thompson-8lxknd`: `Shape.cs` builds everything as meshes; pod a lofted helicopter shape (rounded
+  nose, cabin, tail cone into the boom, engine housing), never rounder than 2:1; the cabin always drawn (hidden only for the
+  rear-view camera); roof, pillars, floor, seats, panel inside. Checked with `tools/preview --model` (`docs/model.png`), compiles;
+  **not tested in game.**
+- **Waiting on the owner:** in-game test of 0.1.3: the outside, the view from the seat, the mirror; the log line `airframe built on
+  body ... head ... pod ...` (gives the real car measures to put into `Model.Car`; `(guessed)` means the camera was not found).
+  Earlier checks still open: controls placement and grab, lift-off at about half collective, hover, landing, the garage on dropping
+  the collective, other items refused.
 - **Unknowns to watch:** the controls' placement and size on each car (from the hidden parts' bounds); the Open World's garage UI may
   still show items as chosen that the lock keeps off; run boons and a starting kit's permanent stats are not removed.
