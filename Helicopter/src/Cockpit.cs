@@ -10,7 +10,7 @@ namespace HalfGripHelicopter
 	/// <list type="bullet">
 	/// <item>the <b>stick</b> (cyclic) where the wheel was: the game's own two-axis gate (<see cref="DoubleLinearObject"/>, what the
 	/// H-shifter is made of) that follows the hand while held and springs back to the middle when let go; a right click holds it where
-	/// it is (frozen, like the wheel's steering lock) and lets it go again;</item>
+	/// it is when let go (the spring off; the hand still moves it) and lets it go again;</item>
 	/// <item>the <b>collective</b> and the <b>throttle</b> where the shifter was: the game's own sliding lever (<see cref="LinearObject"/>,
 	/// what the nitro and the handbrake are made of) with no spring, so each stays where the hand leaves it.</item>
 	/// </list>
@@ -94,6 +94,8 @@ namespace HalfGripHelicopter
 		private SpriteRenderer gripRenderer;
 		private Sprite gripFree;
 		private Sprite gripLocked;
+		/// <summary>Right-click lock: the stick stays where it is let go instead of springing back to the middle.</summary>
+		private bool stickLocked;
 		private Canvas shaft;
 		private Texture2D shaftTexture;
 		private Vector2Int shaftDrawn = new Vector2Int(int.MinValue, 0);
@@ -499,14 +501,20 @@ namespace HalfGripHelicopter
 			Cyclic.releaseCursorBlend = 1f;
 			Cyclic.handIndicatorCameraOffset = 0.5f;
 			Events(Cyclic);
-			// Held, it follows the hand all the way; let go, it springs back to the middle (unless held by a right click).
+			// Held, it follows the hand all the way; let go, it springs back to the middle unless locked by a right click. The lock is
+			// only the spring left off (not the game's `frozen`, which stops the hand moving it too), so a locked stick still moves
+			// while grabbed and stays wherever it is let go (owner, after 0.1.8).
 			Cyclic.onGrabbed.AddListener(() => Cyclic.objectSpringForce = 0f);
-			Cyclic.onReleased.AddListener(() => Cyclic.objectSpringForce = 1f);
+			Cyclic.onReleased.AddListener(() => Cyclic.objectSpringForce = stickLocked ? 0f : 1f);
 			Cyclic.onRightClicked.AddListener(() =>
 			{
-				Cyclic.frozen = !Cyclic.frozen;
-				gripRenderer.sprite = Cyclic.frozen ? gripLocked : gripFree;
-				Mod.Info("Helicopter: stick " + (Cyclic.frozen ? "held" : "let go"));
+				stickLocked = !stickLocked;
+				if (!Cyclic.IsGrabbed)
+				{
+					Cyclic.objectSpringForce = stickLocked ? 0f : 1f;
+				}
+				gripRenderer.sprite = stickLocked ? gripLocked : gripFree;
+				Mod.Info("Helicopter: stick " + (stickLocked ? "locked" : "unlocked"));
 			});
 		}
 

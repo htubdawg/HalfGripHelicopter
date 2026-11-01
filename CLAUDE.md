@@ -32,8 +32,8 @@ changes the state of things, this file must already say everything needed to car
 | `HeliItem.cs` | The item: a clone of chassis `aero_1` (or any chassis) with stock numbers, no downforce, a drawn icon; `Fitted`/`Current` read `PlayerLoadout` |
 | `Lock.cs` | Fits alone: `InventorySlot.OnDrop` (refuse others / clear others), `LoadoutSpawner.Awake` (cut the loadout to the Helicopter, stats again), `LoadoutRefit.Swap` (live refits); `CarLink.FixedUpdate` skipped while flying; no `ACH_BIG_AIR`; the Open World's `ShifterHand` patched by name |
 | `HeliDriver.cs` | Every 0.25 s: the player's `CarLink` + item fitted → builds cockpit, flight, rotor; takes them off when not; `DriveCar` in place of the car's driving (brakes when parked, `engineIndicator` = rotor speed) |
-| `Cockpit.cs` | Hides wheel, all shifters, handbrake (renderers + `InteriorCollider`s off, objects alive, re-hidden every 0.5 s; the wheel's lock-button sprites every frame, since `NSteeringWheel.Update` turns one back on); stick = `DoubleLinearObject` (spring off while held, on when let go, right click toggles `frozen`), levers = `LinearObject` with no spring; placed and sized from the hidden parts' bounds and the dash's pixel size; shaft redrawn in whole pixels |
-| `Flight.cs` | The flight model (see its summary): thrust `m g 2 C rpm²`, climb-rate damping `g/ClimbRate`, attitude hold (5 rad/s, critically damped), yaw from the stick + tail fin, drag balanced at `TopSpeed` |
+| `Cockpit.cs` | Hides wheel, all shifters, handbrake (renderers + `InteriorCollider`s off, objects alive, re-hidden every 0.5 s; the wheel's lock-button sprites every frame, since `NSteeringWheel.Update` turns one back on); stick = `DoubleLinearObject` (spring off while held, on when let go, right click toggles a lock that leaves the spring off on release, not the game's `frozen`, so a locked stick still moves while held), levers = `LinearObject` with no spring; placed and sized from the hidden parts' bounds and the dash's pixel size; shaft redrawn in whole pixels |
+| `Flight.cs` | The flight model (see its summary): thrust `m g 2 C rpm²`, climb-rate damping `g/ClimbRate`, attitude hold (critically damped at `TiltResponse` rad/s, default 3, turning capped at `TiltRate` deg/s, default 30), yaw from the stick + tail fin, drag balanced at `TopSpeed` |
 | `Shape.cs` | The helicopter's geometry as plain triangles per `Paint` (Unity's managed structs only, so `tools/preview` draws it too): `Measure` sizes the pod from the car (length >= 0.62 car lengths, height 0.4-0.5 of the length, head 57% up and 40% back), `Build` gives the outer skin + outside parts, the cabin (inner skin facing in with holes at the glass, glareshield shelf, panel pedestal with a drawn face, floor, seats), the panes (glass seen from inside), the main and tail rotors. Windows are cut at level heights; every edge level owns a mesh column on every ring (`Angles`), so edges are clean. Pixel arrays for the speckle and glass textures; `PanelFace` (the face's corner and edge vectors), `PanelSize`, `PanelPixels` (the guessed face). No `Quaternion.Euler` (native; use `AboutX`/`AboutY`) |
 | `Airframe.cs` | Hides the car's skin models (`CarSkinController.carModels`) and wheel meshes (re-hidden every 0.5 s, shown again on removal); turns `Shape`'s pieces into meshes on the body's layer, one URP Lit material per paint, `_Cull` Back, speckle and panel textures; the panes in the game's `Sprite-Unlit-Default` (alpha blended, always in the build, both sides; hidden from outside by the opaque outer glass); the head is the car's child camera tagged MainCamera; the cabin and panes are always drawn except for the camera named `RearViewCamera` (`beginCameraRendering`); rotors spin with `Flight.Rpm`; `FitPanel` redraws the panel's face round the cockpit's controls (below) |
 | `Art.cs` | `Canvas` (pixel drawing) and the pictures: icon, stick grip and shaft, boot, the levers' gate plate (`Gate`) and levers, `Speckle` |
@@ -43,7 +43,7 @@ changes the state of things, this file must already say everything needed to car
 
 - The item id `helicopter.heli` is saved in runs: never change it.
 - **No keybindings** (owner): everything is worked by the cockpit hand. W/S do nothing while flying.
-- The stick springs to the middle when let go (the helicopter levels and hovers); right click holds it. The levers keep their place.
+- The stick springs to the middle when let go (the helicopter levels and hovers); right click locks it: still moved by the hand, but it stays where it is let go. The levers keep their place.
 - Fits alone: keep every route closed (garage slot, race spawn, live refit). Do not invent other routes around `LoadoutRefit.Swap`.
 - Pixel look: flat palette colours, point filtering, whole dash pixels; no rotated smooth sprites (the shaft is redrawn instead).
 - The flight model works from the car's mass, `Physics.gravity` and the config only: no constants that assume a world scale.
@@ -109,10 +109,13 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 ## Status (keep current)
 
-**Now:** 0.1.8 pushed to `claude/practical-thompson-8lxknd` (no PR yet: the owner hasn't asked for one). Waiting on the owner's
-in-game test of 0.1.8. **Next step:** read their screenshot and the `panel fitted ... gate leaning L / R` log line (the gate's sides
-and slots must run along the console's edges; L and R should be about -0.1, leaning left going up) and fix what they report. Then
-the flight checks still open (below).
+**Now:** 0.1.9 on `claude/practical-thompson-8lxknd`, PR to `main` opened at the owner's request (they asked to prepare it for
+merging). 0.1.9 (owner's asks after 0.1.8): the right-click lock no longer uses `frozen` (which stopped the hand moving the stick);
+it only keeps the spring off on release, so a locked stick still moves while grabbed and stays where let go. Pitch/bank was too
+quick: the attitude spring's frequency is now `Flight.TiltResponse` (default 3, was a fixed 5) and its turning rate is capped at
+`Flight.TiltRate` (default 30 deg/s); new keys, so no migration. Compiles; **not tested in game.** **Next step:** the owner's test
+of 0.1.9 (lock behaviour, pitch feel; tune the defaults from it) and of 0.1.8 (gate lean: the `panel fitted ... gate leaning L / R`
+log line, L and R about -0.1), then the flight checks still open (below).
 
 History:
 

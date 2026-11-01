@@ -12,7 +12,7 @@ namespace HalfGripHelicopter
 	/// <item><b>Vertical damping</b> along the car's up makes the collective a climb-rate control: <c>k = g / ClimbRate</c>, so a full
 	/// collective (a net g upwards) climbs at <c>ClimbRate</c> and half is a steady hover.</item>
 	/// <item><b>Stick</b>: an attitude hold. It asks for a pitch and a bank of up to <c>MaxTilt</c> and a critically damped spring
-	/// (natural frequency 5 rad/s) turns the car there; let go, it levels and the helicopter settles into a hover. Sideways also
+	/// (natural frequency <c>TiltResponse</c>, its turning speed capped at <c>TiltRate</c>) turns the car there; let go, it levels and the helicopter settles into a hover. Sideways also
 	/// yaws (up to 1 rad/s), so it turns on the spot in a hover; at speed a tail fin swings the nose into the wind, so a banked turn
 	/// carries the nose round.</item>
 	/// <item><b>Drag</b> across the ground: quadratic, sized so that a full tilt's push (<c>g tan MaxTilt</c>) balances it at
@@ -24,7 +24,6 @@ namespace HalfGripHelicopter
 	/// </summary>
 	internal sealed class Flight : MonoBehaviour
 	{
-		private const float SpinFrequency = 5f;
 		private const float MaxYawRate = 1f;
 		private const float Weathervane = 1.5f;
 		private const float GroundCushion = 0.12f;
@@ -136,9 +135,14 @@ namespace HalfGripHelicopter
 			}
 			Vector3 w = rb.angularVelocity;
 			Vector3 wYaw = Vector3.up * w.y;
-			float kp = SpinFrequency * SpinFrequency;
-			float kd = 2f * SpinFrequency;
-			Vector3 level = axis.normalized * (angle * Mathf.Deg2Rad) * kp - (w - wYaw) * kd;
+			// The critically damped spring kp e - kd w (kp = f², kd = 2f) written as kd (f/2 e - w): a turning rate wanted, then
+			// damped towards it. Capping that rate keeps a full stick throw from flipping the nose over at the spring's own speed.
+			float f = Mathf.Clamp(Mod.TiltResponse.Value, 0.5f, 10f);
+			float maxRate = Mathf.Clamp(Mod.TiltRate.Value, 5f, 360f) * Mathf.Deg2Rad;
+			Vector3 rate = axis.normalized * (angle * Mathf.Deg2Rad) * (0.5f * f);
+			rate.y = 0f;
+			rate = Vector3.ClampMagnitude(rate, maxRate);
+			Vector3 level = (rate - (w - wYaw)) * (2f * f);
 			level.y = 0f;
 
 			float yawRate = stick.x * MaxYawRate;

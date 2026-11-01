@@ -1,6 +1,6 @@
 # HalfGripHelicopter
 
-**Version 0.1.8** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
+**Version 0.1.9** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
 
 A chassis item, **Helicopter**, that turns your car into a helicopter. Made for the
 [Open World](https://github.com/htubdawg/HalfGripOpenWorld) mod, but it works in any race.
@@ -14,8 +14,8 @@ A chassis item, **Helicopter**, that turns your car into a helicopter. Made for 
 - **New cockpit.** The steering wheel, shifter and handbrake are gone, and so are the car's speed and rev dials, gear box and
   rear-view mirror (the board at the top right stays). In their place:
   - **Stick** (where the wheel was, a big grip standing up from the floor): grab it and push. Forward/back pitches the nose, left/right banks and turns. Let go and it
-    springs back to the middle, and the helicopter levels out into a hover. **Right click** holds it where it is (the button on top
-    turns red) and frees it again.
+    springs back to the middle, and the helicopter levels out into a hover. **Right click** locks it (the button on top
+    turns red): you can still grab and move it, but let go it stays where you left it. Right click again frees it.
   - **Collective** (yellow, left lever): how hard the rotor lifts. **Half way (the yellow mark) hovers**, above climbs, below sinks.
   - **Throttle** (red, right lever): the rotor's speed. It takes a few seconds to spin up. The engine sound follows it.
   - The levers stand in a gate plate where the shifter was and stay where you leave them.
@@ -51,5 +51,7 @@ Copy only the `Helicopter` folder into `<game>\BepInEx\HalfGripMods\`, so that `
 | `Flight.TopSpeed` | 140 | Top speed at full stick, game units a second (the car tops out near 100) |
 | `Flight.ClimbRate` | 30 | Climb rate at full collective, game units a second |
 | `Flight.MaxTilt` | 30 | How far the stick tilts the helicopter, degrees |
+| `Flight.TiltResponse` | 3 | How quickly it pitches and banks to follow the stick (lower is gentler; 0.1.8 was 5) |
+| `Flight.TiltRate` | 30 | The fastest it pitches or banks, degrees a second |
 | `Flight.SpoolSeconds` | 4 | Rotor spin-up time from rest |
 | `Debug.VerboseLog` | false | Write what the mod does to `BepInEx\LogOutput.log` |
