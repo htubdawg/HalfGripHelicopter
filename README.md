@@ -1,6 +1,6 @@
 # HalfGripHelicopter
 
-**Version 0.2.0** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
+**Version 0.2.1** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
 
 A chassis item, **Helicopter**, that turns your car into a helicopter. Made for the
 [Open World](https://github.com/htubdawg/HalfGripOpenWorld) mod, but it works in any race.
@@ -18,7 +18,7 @@ A short showcase of the Helicopter in game. *(Click the picture to watch it on Y
 - **It fits with guns only.** Put the Helicopter in the chassis slot and everything else goes back in the hold, except guns and the
   [MiniMap](https://github.com/htubdawg/HalfGripMiniMap) mod's GPS. Nothing else can go in while it's there. The same holds for a refit in the Open World's garages and for a saved loadout.
 - **New cockpit.** The steering wheel, shifter and handbrake are gone, and so are the car's speed and rev dials, gear box and
-  rear-view mirror (the board at the top right stays). In their place:
+  rear-view mirror, money and enemy-targeting lights (the board at the top right stays). In their place:
   - **Stick** (where the wheel was, a big grip standing up from the floor): grab it and push. Forward/back pitches the nose, left/right banks and turns. Let go and it
     springs back to the middle, and the helicopter levels out into a hover. **Right click** locks it (the button on top
     turns red): you can still grab and move it, but let go it stays where you left it. Right click again frees it.
@@ -28,13 +28,14 @@ A short showcase of the Helicopter in game. *(Click the picture to watch it on Y
 - **It looks like one.** From outside the car's body and wheels are gone: a fuselage with a glass nose and door windows and an engine housing on top, a tail boom with
   a fin and tail rotor, skids, and a main rotor that spins with the throttle. From the seat you look out through the
   tinted bubble windscreen and door windows from a cabin with a roof, walls, a floor, two seats and an instrument panel
-  (gauges, radio, warning lights, switches) laid out round the stick and the levers, with a centre console under the levers.
+  (gauges, radio, warning lights, switches) laid out round the stick and the levers, with a centre console under the levers
+  and, with the MiniMap's GPS fitted, a bay the GPS sits in.
 
   ![The helicopter from outside and from the seat](docs/model.png)
 - **No keys.** W and S do nothing. Everything is done with the hand.
 - In the **Open World**, land in a garage and drop the collective to the bottom, then let go of it. That opens the garage (instead of
   letting go of the shifter in neutral). The same signs you on to an event.
-- No Big Air achievement while the Helicopter is fitted.
+- No Big Air achievement and no "AirTime" combo on the screen while the Helicopter is fitted.
 
 ## How to fly
 

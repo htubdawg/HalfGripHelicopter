@@ -45,6 +45,10 @@ namespace HalfGripHelicopter
 				{
 					Remove();
 				}
+				else if (Active)
+				{
+					RefitForGps();
+				}
 			}
 			catch (Exception e)
 			{
@@ -71,6 +75,7 @@ namespace HalfGripHelicopter
 				airframe = Airframe.Build(link.cc, flight, body);
 				try
 				{
+					cockpit.FindGps();
 					airframe.FitPanel(cockpit);
 				}
 				catch (Exception e)
@@ -88,8 +93,38 @@ namespace HalfGripHelicopter
 			}
 		}
 
+		/// <summary>True while the GPS has changed (fitted, built, moved, taken off) and the panel's face is not yet drawn round it.</summary>
+		private static bool gpsPending;
+
+		/// <summary>
+		/// The panel's face drawn again when the MiniMap's GPS comes, moves or goes (it builds itself after the cockpit, and live refits
+		/// add or take it off); held back while the head is turned, since the fit looks through the cameras.
+		/// </summary>
+		private static void RefitForGps()
+		{
+			if (cockpit == null || airframe == null)
+			{
+				return;
+			}
+			gpsPending |= cockpit.FindGps();
+			if (!gpsPending || !airframe.HeadAsFitted(cockpit))
+			{
+				return;
+			}
+			gpsPending = false;
+			try
+			{
+				airframe.FitPanel(cockpit);
+			}
+			catch (Exception e)
+			{
+				Mod.Log.LogWarning("Helicopter: the instrument panel could not be fitted round the GPS: " + e.Message);
+			}
+		}
+
 		private static void Remove()
 		{
+			gpsPending = false;
 			if (cockpit != null)
 			{
 				Destroy(cockpit.gameObject);

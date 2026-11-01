@@ -299,6 +299,16 @@ namespace HalfGripHelicopter
 		}
 	}
 
+	/// <summary>A helicopter is always in the air: no airtime combo (the growing "AirTime" multiplier line on the screen) while flying.</summary>
+	[HarmonyPatch(typeof(ComboManager), nameof(ComboManager.IncrementComboContinuous))]
+	internal static class NoAirTime
+	{
+		private static bool Prefix(string name)
+		{
+			return !(name == "AirTime" && HeliDriver.Active);
+		}
+	}
+
 	/// <summary>A helicopter is always in the air: no Big Air achievement for it.</summary>
 	[HarmonyPatch(typeof(SteamAchievements), nameof(SteamAchievements.Unlock))]
 	internal static class NoBigAir

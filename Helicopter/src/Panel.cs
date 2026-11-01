@@ -15,14 +15,19 @@ namespace HalfGripHelicopter
 	/// </summary>
 	internal static class Panel
 	{
-		/// <summary>A part of the face kept clear, in texture space (0..1, v up). Console: drawn as the levers' plate, else plain.</summary>
+		/// <summary>
+		/// A part of the face kept clear, in texture space (0..1, v up). Console: drawn as the levers' plate; Mount: a recessed bay the
+		/// MiniMap's GPS sits in; else plain.
+		/// </summary>
 		internal struct Zone
 		{
 			internal float U0, V0, U1, V1;
 			internal bool Console;
+			internal bool Mount;
 
-			internal Zone(float u0, float v0, float u1, float v1, bool console)
+			internal Zone(float u0, float v0, float u1, float v1, bool console, bool mount = false)
 			{
+				Mount = mount;
 				U0 = Mathf.Min(u0, u1);
 				U1 = Mathf.Max(u0, u1);
 				V0 = Mathf.Min(v0, v1);
@@ -77,9 +82,10 @@ namespace HalfGripHelicopter
 				{
 					continue;
 				}
-				for (int y = Mathf.Max(0, y0 - 2); y < Mathf.Min(h, y1 + 2); y++)
+				int keep = z.Mount ? 2 + BayRim + 1 : 2;
+				for (int y = Mathf.Max(0, y0 - keep); y < Mathf.Min(h, y1 + keep); y++)
 				{
-					for (int x = Mathf.Max(0, x0 - 2); x < Mathf.Min(w, x1 + 2); x++)
+					for (int x = Mathf.Max(0, x0 - keep); x < Mathf.Min(w, x1 + keep); x++)
 					{
 						used[y * w + x] = true;
 					}
@@ -87,6 +93,10 @@ namespace HalfGripHelicopter
 				if (z.Console)
 				{
 					Console(c, x0, y0, x1, Mathf.Min(y1, h - 3));
+				}
+				else if (z.Mount)
+				{
+					Bay(c, x0 - BayRim, y0 - BayRim, x1 + BayRim, Mathf.Min(y1 + BayRim, h - 3));
 				}
 			}
 
@@ -206,6 +216,34 @@ namespace HalfGripHelicopter
 				}
 			}
 			return true;
+		}
+
+		/// <summary>How far the GPS's bay reaches past the GPS on each side, in pixels (the part of it that shows round the casing).</summary>
+		private const int BayRim = 3;
+
+		/// <summary>
+		/// The GPS's bay: a dark recess cut into the face (shadowed along the top and left, a lit lip along the bottom and right, as the
+		/// face's own bevels are lit from above) with a screw at each corner, so the GPS looks set into the panel.
+		/// </summary>
+		private static void Bay(Canvas c, int x0, int y0, int x1, int y1)
+		{
+			if (x1 - x0 < 6 || y1 - y0 < 6)
+			{
+				return;
+			}
+			c.Rect(x0, y0, x1 - x0, y1 - y0, Art.Black);
+			c.Rect(x0 + 1, y0 + 1, x1 - x0 - 2, y1 - y0 - 2, Art.Dark);
+			c.Rect(x0 + 1, y1 - 2, x1 - x0 - 2, 1, Art.Black);
+			c.Rect(x0 + 1, y0 + 1, 1, y1 - y0 - 2, Art.Black);
+			c.Rect(x0 + 1, y0 + 1, x1 - x0 - 2, 1, Art.Grey);
+			c.Rect(x1 - 2, y0 + 1, 1, y1 - y0 - 2, Art.Grey);
+			c.Rect(x0 - 1, y1, x1 - x0 + 1, 1, Art.Black);
+			c.Rect(x0, y0 - 1, x1 - x0 + 1, 1, Art.Light);
+			c.Rect(x1, y0 - 1, 1, y1 - y0 + 1, Art.Light);
+			Screw(c, x0 - 3, y1 + 2);
+			Screw(c, x1 + 2, y1 + 2);
+			Screw(c, x0 - 3, y0 - 2);
+			Screw(c, x1 + 2, y0 - 2);
 		}
 
 		/// <summary>The levers' console: the gate's speckled grey plate, bevelled, with a seam and screws.</summary>

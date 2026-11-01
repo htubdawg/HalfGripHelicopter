@@ -49,6 +49,12 @@ namespace HalfGripHelicopter
 		/// </summary>
 		internal readonly List<(Vector3 Min, Vector3 Max, bool Console)> Areas = new List<(Vector3, Vector3, bool)>();
 
+		/// <summary>
+		/// The MiniMap's GPS on the dash (a box in the interior's space, at its depth), or null when none is fitted. The panel's face gets a
+		/// recessed bay behind it, so it looks set into the panel and not stuck over its gauges. Kept up to date by <see cref="FindGps"/>.
+		/// </summary>
+		internal (Vector3 Min, Vector3 Max)? Gps { get; private set; }
+
 		/// <summary>A point in the interior's space as a point in the world.</summary>
 		internal Vector3 World(Vector3 local) => transform.parent != null ? transform.parent.TransformPoint(local) : local;
 
@@ -243,7 +249,8 @@ namespace HalfGripHelicopter
 
 		/// <summary>
 		/// The car's dash read-outs that mean nothing in a helicopter, each as its group under the interior (so its backing sprite goes with
-		/// it): the speed display with the rev and speed dials, the gear and grip box, the rear-view mirror. Not the board at the top right.
+		/// it): the speed display with the rev and speed dials, the gear and grip box, the rear-view mirror, the money and enemy-targeting
+		/// lights. Not the board at the top right.
 		/// </summary>
 		private void FindDashParts(Transform root)
 		{
@@ -269,6 +276,15 @@ namespace HalfGripHelicopter
 			Add(link.gearIndicator);
 			Add(link.indicatorstall);
 			Add(link.indicatormoneyshift);
+			// The money light and the enemy-targeting light above the shifter (each a dark socket with a blinking sprite over it).
+			foreach (MoneyIndicator m in root.GetComponentsInChildren<MoneyIndicator>(true))
+			{
+				Add(m);
+			}
+			foreach (EnemyTargetingIndicator e in root.GetComponentsInChildren<EnemyTargetingIndicator>(true))
+			{
+				Add(e);
+			}
 			foreach (SpeedDashboard d in root.GetComponentsInChildren<SpeedDashboard>(true))
 			{
 				Add(d);
@@ -347,8 +363,14 @@ namespace HalfGripHelicopter
 		/// <summary>The bounds of a part's shown sprites in the interior's own space (before they are hidden).</summary>
 		private static Bounds LocalBounds(Transform part, Transform root, Bounds fallback)
 		{
+			return TryLocalBounds(part, root, out Bounds b) ? b : fallback;
+		}
+
+		/// <summary>The bounds of a part's shown sprites in the interior's own space; false if none is shown.</summary>
+		private static bool TryLocalBounds(Transform part, Transform root, out Bounds b)
+		{
 			bool any = false;
-			Bounds b = default;
+			b = default;
 			foreach (SpriteRenderer r in part.GetComponentsInChildren<SpriteRenderer>(false))
 			{
 				if (!r.enabled || r.sprite == null)
@@ -371,7 +393,49 @@ namespace HalfGripHelicopter
 					}
 				}
 			}
-			return any ? b : fallback;
+			return any;
+		}
+
+		private MonoBehaviour gpsScreen;
+		private float nextGpsSearch;
+
+		/// <summary>
+		/// Looks for the MiniMap's GPS in the interior (its <c>GpsScreen</c>, found by name: each mod is compiled on its own) and measures
+		/// its shown sprites. True when its box changed since the last look (it was fitted, built, moved or taken off), so the panel's face
+		/// must be drawn again. The GPS builds its sprites a frame or more after it is spawned, and a live refit can add or take it off.
+		/// </summary>
+		internal bool FindGps()
+		{
+			Transform root = transform.parent;
+			if (root == null)
+			{
+				return false;
+			}
+			if (gpsScreen == null && Time.unscaledTime >= nextGpsSearch)
+			{
+				nextGpsSearch = Time.unscaledTime + 1f;
+				foreach (MonoBehaviour m in root.GetComponentsInChildren<MonoBehaviour>(false))
+				{
+					if (m != null && m.GetType().Name == "GpsScreen")
+					{
+						gpsScreen = m;
+						break;
+					}
+				}
+			}
+			(Vector3 Min, Vector3 Max)? now = null;
+			if (gpsScreen != null && gpsScreen.isActiveAndEnabled && TryLocalBounds(gpsScreen.transform, root, out Bounds b))
+			{
+				now = (new Vector3(b.min.x, b.min.y, b.center.z), new Vector3(b.max.x, b.max.y, b.center.z));
+			}
+			bool same = now.HasValue == Gps.HasValue && (!now.HasValue || ((now.Value.Min - Gps.Value.Min).sqrMagnitude < texel * texel * 0.25f && (now.Value.Max - Gps.Value.Max).sqrMagnitude < texel * texel * 0.25f));
+			if (same)
+			{
+				return false;
+			}
+			Gps = now;
+			Mod.Info("Helicopter: " + (now.HasValue ? "the GPS is on the dash at " + now.Value.Min + " to " + now.Value.Max : "no GPS on the dash") + ".");
+			return true;
 		}
 
 		/// <summary>Onto the dash's pixel grid, so the parts line up with the pixels round them.</summary>
