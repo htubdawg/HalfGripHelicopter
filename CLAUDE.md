@@ -21,7 +21,7 @@ cockpit's wheel and shifter with a stick, a collective and a throttle, and flies
 | `HeliDriver.cs` | Every 0.25 s: the player's `CarLink` + item fitted → builds cockpit, flight, rotor; takes them off when not; `DriveCar` in place of the car's driving (brakes when parked, `engineIndicator` = rotor speed) |
 | `Cockpit.cs` | Hides wheel, all shifters, handbrake (renderers + `InteriorCollider`s off, objects alive, re-hidden every 0.5 s); stick = `DoubleLinearObject` (spring off while held, on when let go, right click toggles `frozen`), levers = `LinearObject` with no spring; placed and sized from the hidden parts' bounds and the dash's pixel size; shaft redrawn in whole pixels |
 | `Flight.cs` | The flight model (see its summary): thrust `m g 2 C rpm²`, climb-rate damping `g/ClimbRate`, attitude hold (5 rad/s, critically damped), yaw from the stick + tail fin, drag balanced at `TopSpeed` |
-| `Airframe.cs` | The outside: the car's skin models (`CarSkinController.carModels`) and wheel meshes hidden (re-hidden every 0.5 s, shown again on removal), a helicopter of primitives (colliders removed, plain URP Lit) on the body's layer, sized from the body bounds, skids at the wheels' bottom; rotors spin with `Flight.Rpm` |
+| `Airframe.cs` | The outside: the car's skin models (`CarSkinController.carModels`) and wheel meshes hidden (re-hidden every 0.5 s, shown again on removal), a helicopter on the body's layer: the fuselage a generated egg mesh built round the cockpit view's world camera (the car's child camera tagged MainCamera, `CarBodyPivot/Head`), outer skin facing out (body, glass, frames; back faces culled, so glass is clear from inside), inner cabin skin facing in with holes at the windows (walls and floor speckle-textured), drawn only for that camera (`beginCameraRendering`, so the rear-view mirror sees out); the rest primitives (colliders removed, plain URP Lit), skids at the wheels' bottom; rotors spin with `Flight.Rpm` |
 | `Art.cs` | `Canvas` (pixel drawing) and the pictures: icon, grip, boot, slot, handles |
 
 ## Rules that matter
@@ -60,8 +60,14 @@ cockpit's wheel and shifter with a stick, a collective and a throttle, and flies
 - **0.1.1** on `claude/practical-thompson-8lxknd`: events created before use; a failed build is cleaned up and not retried until
   the next race; the stick's grip rests just above the dials' bottom edge; `Airframe` replaces `Rotor` (car hidden, helicopter
   built). Compiles; **not tested in game.**
-- **Waiting on the owner:** first in-game test, ideally in the Open World. Screenshots of the cockpit, and the log with VerboseLog on.
-  Things to check: the controls sit where the wheel and shifter were and grab well; lift-off at about half collective; the hover
-  holds when the stick is let go; turning feel; landing; a garage opens on dropping the collective; other items refused.
+- **0.1.1 test** (owner, screenshots): flies; the model was squashed flat (fuselage sized from the car's height); the cockpit
+  camera sat inside the canopy with no cabin modelled, and the glass was opaque from inside.
+- **0.1.2** on `claude/practical-thompson-8lxknd`: fuselage sized from the car's width and the driver's head (head a little over
+  half way up, behind the middle); one egg mesh with glass nose, chin and door windows and frames; a textured cabin inside drawn
+  only for the cockpit camera; `_Cull` set to Back on every material. Compiles; **not tested in game.**
+- **Waiting on the owner:** in-game test of 0.1.2: the outside shape, the view from the seat (windscreen and door windows clear,
+  walls and floor seen, rotor through the glass top), the rear-view mirror. Log line `airframe built ... head ... fuselage ...`
+  (a `(guessed)` head means the camera was not found). Earlier checks still open: controls placement and grab, lift-off at
+  about half collective, hover, landing, the garage on dropping the collective, other items refused.
 - **Unknowns to watch:** the controls' placement and size on each car (from the hidden parts' bounds); the Open World's garage UI may
   still show items as chosen that the lock keeps off; run boons and a starting kit's permanent stats are not removed.
