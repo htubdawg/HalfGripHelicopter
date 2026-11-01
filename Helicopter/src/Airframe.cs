@@ -97,6 +97,21 @@ namespace HalfGripHelicopter
 			}
 		}
 
+		/// <summary>
+		/// The car's lap-delta meter: sprites on the car's own dashboard (in the body model, but not meshes), which would hang in the cabin
+		/// by the left pillar as a slanted dark bar.
+		/// </summary>
+		private static IEnumerable<Renderer> MeterRenderers(CarControllerNew cc)
+		{
+			foreach (LapDeltaTimerDisplay d in cc.GetComponentsInChildren<LapDeltaTimerDisplay>(true))
+			{
+				foreach (Renderer r in d.GetComponentsInChildren<Renderer>(true))
+				{
+					yield return r;
+				}
+			}
+		}
+
 		/// <summary>The wheels' meshes (not their particles or trails).</summary>
 		private static IEnumerable<Renderer> WheelRenderers(CarControllerNew cc)
 		{
@@ -396,10 +411,10 @@ namespace HalfGripHelicopter
 			return Shader.Find("Universal Render Pipeline/Lit");
 		}
 
-		/// <summary>The car's body and wheel meshes off (again: a refit or a skin change turns them back on).</summary>
+		/// <summary>The car's body and wheel meshes and its lap-delta meter off (again: a refit or a skin change turns them back on).</summary>
 		private void Hide()
 		{
-			foreach (IEnumerable<Renderer> set in new[] { BodyRenderers(cc), WheelRenderers(cc) })
+			foreach (IEnumerable<Renderer> set in new[] { BodyRenderers(cc), WheelRenderers(cc), MeterRenderers(cc) })
 			{
 				foreach (Renderer r in set)
 				{

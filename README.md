@@ -1,6 +1,6 @@
 # HalfGripHelicopter
 
-**Version 0.1.4** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
+**Version 0.1.5** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
 
 A chassis item, **Helicopter**, that turns your car into a helicopter. Made for the
 [Open World](https://github.com/htubdawg/HalfGripOpenWorld) mod, but it works in any race.
@@ -11,13 +11,14 @@ A chassis item, **Helicopter**, that turns your car into a helicopter. Made for 
 
 - **It fits alone.** Put the Helicopter in the chassis slot and everything else goes back in the hold. Nothing else can go in while
   it's there. The same holds for a refit in the Open World's garages and for a saved loadout.
-- **New cockpit.** The steering wheel, shifter and handbrake are gone. In their place:
-  - **Stick** (where the wheel was): grab it and push. Forward/back pitches the nose, left/right banks and turns. Let go and it
+- **New cockpit.** The steering wheel, shifter and handbrake are gone, and so are the car's speed and rev dials, gear box and
+  rear-view mirror (the board at the top right stays). In their place:
+  - **Stick** (where the wheel was, standing up from the floor): grab it and push. Forward/back pitches the nose, left/right banks and turns. Let go and it
     springs back to the middle, and the helicopter levels out into a hover. **Right click** holds it where it is (the button on top
     turns red) and frees it again.
   - **Collective** (yellow, left lever): how hard the rotor lifts. **Half way (the yellow mark) hovers**, above climbs, below sinks.
-  - **Throttle** (red, right lever): the rotor's speed. It takes a few seconds to spin up. The rev dial and engine sound follow it.
-  - The levers stay where you leave them.
+  - **Throttle** (red, right lever): the rotor's speed. It takes a few seconds to spin up. The engine sound follows it.
+  - The levers sit in a console and stay where you leave them.
 - **It looks like one.** From outside the car's body and wheels are gone: a fuselage with a glass nose and door windows and an engine housing on top, a tail boom with
   a fin and tail rotor, skids, and a main rotor that spins with the throttle. From the seat you look out through the
   tinted bubble windscreen and door windows from a cabin with a roof, walls, a floor, two seats and an instrument panel

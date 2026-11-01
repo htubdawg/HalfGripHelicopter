@@ -5,7 +5,8 @@ namespace HalfGripHelicopter
 {
 	/// <summary>
 	/// One sheet of the mod's pictures, from its own drawing code: the shop icon at the game's body-card size, then a mock of the
-	/// cockpit (stick at rest, pushed forward-left and held; collective at the hover mark, throttle full). Exits 1 if the icon is blank.
+	/// cockpit cut off by the screen's bottom edge, as in game (stick at rest, pushed forward-left and held, its boot on the bottom edge;
+	/// the levers' console running off the bottom, collective at the hover mark, throttle full). Exits 1 if the icon is blank.
 	///   dotnet run -c Release --project tools/preview -- out.png
 	/// and the helicopter's shape from outside and from the seat (<see cref="Model"/>):
 	///   dotnet run -c Release --project tools/preview -- --model model.png
@@ -25,7 +26,7 @@ namespace HalfGripHelicopter
 				return 0;
 			}
 			string path = args.Length > 0 ? args[0] : "preview.png";
-			Canvas sheet = new Canvas(200, 90);
+			Canvas sheet = new Canvas(220, 110);
 			sheet.Rect(0, 0, sheet.Width, sheet.Height, new Color32(58, 52, 50, 255));
 
 			Canvas icon = Art.Icon(43, 13);
@@ -34,12 +35,17 @@ namespace HalfGripHelicopter
 			{
 				filled += c.a > 0 ? 1 : 0;
 			}
-			Blit(sheet, icon, 4, 72);
+			Blit(sheet, icon, 4, 92);
 
-			Stick(sheet, 20, 8, 0, 0, false);
-			Stick(sheet, 64, 8, -12, 12, true);
-			Lever(sheet, 120, 30, 0.5f, Art.Yellow, true);
-			Lever(sheet, 140, 30, 1f, Art.Red, false);
+			// Row 0 is the screen's bottom edge: the boots' middles sit on it, the console runs below it.
+			int length = 60;
+			Stick(sheet, 30, 0, length, 0, 0, false);
+			Stick(sheet, 80, 0, length, -12, 12, true);
+			int gap = 10, up = 44 / 2 + 7, down = 50 + 24;
+			Canvas console = Art.Console(2 * gap + 26, up + down, gap, up);
+			Blit(sheet, console, 160 - console.Width / 2, 50 - down);
+			Lever(sheet, 160 - gap, 50, 0.5f, Art.Yellow, true);
+			Lever(sheet, 160 + gap, 50, 1f, Art.Red, false);
 
 			Png.Save(path, sheet.Pixels, sheet.Width, sheet.Height, 4);
 			Console.WriteLine("wrote " + path + ", icon " + filled + " of " + icon.Pixels.Length + " pixels drawn");
@@ -47,11 +53,11 @@ namespace HalfGripHelicopter
 		}
 
 		/// <summary>The stick as the cockpit draws it: boot at the foot, the shaft in whole pixels, the grip at (dx, dy) from rest.</summary>
-		private static void Stick(Canvas sheet, int footX, int footY, int dx, int dy, bool locked)
+		private static void Stick(Canvas sheet, int footX, int footY, int length, int dx, int dy, bool locked)
 		{
 			Canvas boot = Art.Boot();
 			Blit(sheet, boot, footX - boot.Width / 2, footY - boot.Height / 2);
-			int gate = 12, length = 34;
+			int gate = 12;
 			Canvas shaft = new Canvas(2 * gate + 9, length + gate + 4);
 			int ox = shaft.Width / 2;
 			shaft.Line(ox, 2, ox + dx, Math.Clamp(length + dy, 2, shaft.Height - 2), 3, Art.Grey);

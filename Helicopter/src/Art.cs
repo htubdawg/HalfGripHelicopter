@@ -211,13 +211,69 @@ namespace HalfGripHelicopter
 			return c;
 		}
 
-		/// <summary>The rubber boot at the stick's foot.</summary>
+		/// <summary>
+		/// The rubber boot where the stick comes up through the floor: a ring plate with a pleated gaiter on it. The cockpit puts its middle
+		/// on the screen's bottom edge, so the top half shows.
+		/// </summary>
 		internal static Canvas Boot()
 		{
-			Canvas c = new Canvas(20, 9);
-			c.Ellipse(1, 1, 18, 7, Dark);
+			Canvas c = new Canvas(28, 16);
+			c.Ellipse(1, 1, 26, 14, Grey);
+			c.Shade(Light, Dark, Black);
+			// Screws round the ring plate.
+			c.Set(5, 11, Black);
+			c.Set(22, 11, Black);
+			c.Set(3, 8, Black);
+			c.Set(24, 8, Black);
+			// The gaiter: pleats narrowing to the shaft.
+			c.Ellipse(6, 4, 16, 9, Black);
+			c.Ellipse(7, 5, 14, 8, Dark);
+			c.Ellipse(9, 7, 10, 6, Black);
+			c.Ellipse(10, 8, 8, 5, Dark);
+			c.Ellipse(12, 9, 4, 3, Black);
+			return c;
+		}
+
+		/// <summary>
+		/// The levers' console, <paramref name="w"/> by <paramref name="h"/>: a plate with a lip and screws at the top, a dark channel behind
+		/// each slot (<paramref name="gap"/> either side of the middle, centred <paramref name="up"/> below the top), a colour tag under each
+		/// (yellow collective, red throttle) and panel seams running down off the screen.
+		/// </summary>
+		internal static Canvas Console(int w, int h, int gap, int up)
+		{
+			Canvas c = new Canvas(w, h);
+			c.Rect(1, 0, w - 2, h - 3, Dark);
+			c.Rect(3, h - 3, w - 6, 2, Dark);
 			c.Shade(Grey, Black, Black);
-			c.Ellipse(7, 3, 6, 3, Black);
+			// The lip along the top.
+			c.Rect(3, h - 4, w - 6, 1, Grey);
+			c.Rect(2, h - 5, w - 4, 1, Black);
+			// Screws in the corners of the top panel.
+			foreach (int x in new[] { 4, w - 5 })
+			{
+				c.Set(x, h - 8, Grey);
+				c.Set(x, h - 9, Black);
+			}
+			int mid = h - up;
+			int mx = w / 2;
+			foreach (int side in new[] { -1, 1 })
+			{
+				int x = mx + side * gap;
+				// A recess behind the slot, a little longer than its travel.
+				c.Rect(x - 6, mid - 25, 12, 50, Black);
+				c.Rect(x - 5, mid - 24, 10, 48, new Color32(34, 35, 40, 255));
+				// The colour tag under it.
+				c.Rect(x - 3, mid - 30, 6, 3, side < 0 ? Yellow : Red);
+				c.Rect(x - 3, mid - 31, 6, 1, Black);
+			}
+			// A seam across the console under the tags, then every 18 pixels down.
+			for (int y = mid - 35; y > 0; y -= 18)
+			{
+				c.Rect(2, y, w - 4, 1, Black);
+				c.Rect(2, y - 1, w - 4, 1, Grey);
+				c.Set(4, y - 4, Grey);
+				c.Set(w - 5, y - 4, Grey);
+			}
 			return c;
 		}
 

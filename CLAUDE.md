@@ -102,9 +102,10 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 ## Status (keep current)
 
-**Now:** 0.1.4 pushed to `claude/practical-thompson-8lxknd` (no PR yet: the owner hasn't asked for one). Waiting on the owner's
-in-game test of 0.1.4. **Next step:** read their screenshots and the `airframe built` log line; put the real body bounds, ground
-and head into `Model.Car` in `tools/preview/Model.cs`, re-render, and fix what they report.
+**Now:** 0.1.5 pushed to `claude/practical-thompson-8lxknd` (no PR yet: the owner hasn't asked for one). Waiting on the owner's
+in-game test of 0.1.5. **Next step:** read their screenshots and the `cockpit built` / `airframe built` log lines; check the stick's
+boot sits on the screen's bottom edge and the console runs off it; put the real body bounds, ground and head into `Model.Car` in
+`tools/preview/Model.cs`, re-render, and fix what they report.
 
 History:
 
@@ -131,9 +132,22 @@ History:
   bubble); the windscreen's bottom lowered (bubble nose) with a grey glareshield shelf; a panel pedestal with gauges, radio,
   lights and switches; tinted glass with glare bands seen from inside; the lock buttons hidden every frame. Checked with
   `--model` and `--close`, compiles; **not tested in game.**
-- **Waiting on the owner:** in-game test of 0.1.4: the view from the seat (no spike, panel, glass tint), the nose from outside,
-  the grey marks gone, the mirror; and the log line `airframe built on body ... head ... pod ...` (the real car measures for
+- **0.1.4 test** (owner, one screenshot, Open World): the seat view is good, but the stick and levers float over the cabin panel
+  (not attached to anything); the car's dash read-outs still show (speed/rev dials with the digital speed: `SpeedDisplay`; the "N"
+  gear/grip box: `ShifDials`; the dash's `RearViewMirror`); and a slanted dark bar by the left pillar, the car's own
+  `LapDeltaMeter` (sprites in the body model, which `Airframe` didn't hide: it hid only meshes). **Keep the board at the top right**
+  (owner: leaderboard + lap counter, the Open World's `EventBoard`).
+- **0.1.5** on `claude/practical-thompson-8lxknd`: `Cockpit.FindDashParts` hides each read-out's group under `CarInterior` (from
+  `CarLink.dialrpm/dialspeed/gearIndicator/indicator*`, `SpeedDashboard`, sprites named `rearview*`), never a group holding the
+  wheel, shifters, a `Grabbable`, `StatusInfo` or `LapCounter`; the money-shift/stall lights off every frame (`CarLink` sets them
+  each frame); `Airframe` hides `LapDeltaTimerDisplay`'s renderers too. The stick's foot is on the screen's bottom edge (measured
+  once from `InteriorCamera`, `ScreenBottom`), a bigger floor boot half showing, the shaft pivoting there; the levers on
+  `Art.Console` (plate, recess per slot, colour tags, seams) running 24 pixels past the bottom edge. Checked with `tools/preview`
+  (`docs/preview.png`), compiles; **not tested in game.**
+- **Waiting on the owner:** in-game test of 0.1.5 (the controls look mounted, the read-outs and the slanted bar gone, the board
+  still there; the stick and levers still grab and work); still open from 0.1.4: the nose from outside, and the log line `airframe built on body ... head ... pod ...` (the real car measures for
   `Model.Car`). Earlier checks still open: controls placement and grab, lift-off at about half collective, hover, landing, the
-  garage on dropping the collective, other items refused.
+  garage on dropping the collective, other items refused. Unknown: whether the interior camera moves (head look) enough to show the
+  stick's foot or the console's end.
 - **Unknowns to watch:** the controls' placement and size on each car (from the hidden parts' bounds); the Open World's garage UI may
   still show items as chosen that the lock keeps off; run boons and a starting kit's permanent stats are not removed.
