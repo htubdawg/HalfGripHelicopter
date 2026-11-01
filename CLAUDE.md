@@ -91,6 +91,7 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
   tools/check.sh <halfgriprefs>/game <HalfGripTools>/dist/BepInEx/plugins/HalfGripTools/HalfGripTools.dll
   ```
 - Pictures: `dotnet run -c Release --project tools/preview -p:Refs=<halfgriprefs> -- docs/preview.png` (exits 1 on a blank icon).
+  `-- --clear <png>` draws the same sheet transparent at one pixel per dash pixel, to lay over an owner's screenshot.
   Look at it after any art change.
 - Model: `dotnet run -c Release --project tools/preview -p:Refs=<halfgriprefs> -- --model docs/model.png` draws `Shape` with back-face
   culling and depth, from outside and from the head (ahead, left, right, the mirror back), for the game's car and a smaller one.
@@ -102,9 +103,10 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 ## Status (keep current)
 
-**Now:** 0.1.5 pushed to `claude/practical-thompson-8lxknd` (no PR yet: the owner hasn't asked for one). Waiting on the owner's
-in-game test of 0.1.5. **Next step:** read their screenshots and the `cockpit built` / `airframe built` log lines; check the stick's
-boot sits on the screen's bottom edge and the console runs off it; put the real body bounds, ground and head into `Model.Car` in
+**Now:** 0.1.6 pushed to `claude/practical-thompson-8lxknd` (no PR yet: the owner hasn't asked for one). Waiting on the owner's
+in-game test of 0.1.6. **Next step:** read their screenshots and the `cockpit built` / `airframe built` log lines; check the stick's
+size and the gate plate against the cockpit (lay `tools/preview -- --clear` over their screenshot at ~3.5 screen px per dash px
+at 1080p); put the real body bounds, ground and head into `Model.Car` in
 `tools/preview/Model.cs`, re-render, and fix what they report.
 
 History:
@@ -144,8 +146,19 @@ History:
   once from `InteriorCamera`, `ScreenBottom`), a bigger floor boot half showing, the shaft pivoting there; the levers on
   `Art.Console` (plate, recess per slot, colour tags, seams) running 24 pixels past the bottom edge. Checked with `tools/preview`
   (`docs/preview.png`), compiles; **not tested in game.**
-- **Waiting on the owner:** in-game test of 0.1.5 (the controls look mounted, the read-outs and the slanted bar gone, the board
-  still there; the stick and levers still grab and work); still open from 0.1.4: the nose from outside, and the log line `airframe built on body ... head ... pod ...` (the real car measures for
+- **0.1.5 test** (owner, screenshot + the car's own cockpit for comparison): better; read-outs, mirror and slanted bar gone, but a
+  white `||` was left over the panel (the gear box's tyre monitor / shift arrows: their scripts switch sprites on every frame); the
+  stick must be **2-3x bigger** (its mount out of sight is fine); the console's levers "don't fit the cockpit" (flat, tall, thin).
+  The car's style: chunky shaded sprites, the H-shifter a speckled grey plate in perspective (wider at the front) with dark slots
+  and a big knob up on a shaft.
+- **0.1.6** on `claude/practical-thompson-8lxknd`: the read-outs' renderers off every frame (`HideDash`); the stick ~2.5x (grip
+  28x40 dash pixels with ridges, trigger, hat switch; shaft 6 thick; foot 20 pixels below the screen's edge, out of sight; gate
+  +-16); the levers stand out of `Art.Gate` (speckled grey trapezoid 66/52 wide, 62 high, dark front face, slots with quarter
+  ticks, yellow hover mark, red full mark), front edge 4 pixels below the screen's edge, as `Art.Lever` (collar in the slot,
+  24-pixel shaft, knob: collective black head with a yellow/black band, throttle a red twist grip). Checked with `tools/preview`
+  and laid over the owner's screenshot (sizes fit the panel), compiles; **not tested in game.**
+- **Waiting on the owner:** in-game test of 0.1.6 (stick size, levers' look, the `||` gone, the board still there; the stick and
+  levers still grab and work); still open from 0.1.4: the nose from outside, and the log line `airframe built on body ... head ... pod ...` (the real car measures for
   `Model.Car`). Earlier checks still open: controls placement and grab, lift-off at about half collective, hover, landing, the
   garage on dropping the collective, other items refused. Unknown: whether the interior camera moves (head look) enough to show the
   stick's foot or the console's end.

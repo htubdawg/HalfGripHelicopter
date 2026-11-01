@@ -198,115 +198,170 @@ namespace HalfGripHelicopter
 			return c;
 		}
 
-		/// <summary>The stick's grip: a black grip with a trigger, the top button red while the stick is held where it is (locked).</summary>
+		/// <summary>
+		/// The stick's grip, drawn big like the car's shifter knob: a black cyclic grip with finger ridges and a trigger at the front, a hat
+		/// switch on top and a collar at the bottom where the shaft goes in (the sprite's pivot). The button on its left turns red while the
+		/// stick is held where it is (locked).
+		/// </summary>
 		internal static Canvas Grip(bool locked)
 		{
-			Canvas c = new Canvas(12, 16);
-			c.Rect(3, 0, 6, 12, Dark);
-			c.Ellipse(2, 7, 8, 8, Dark);
-			c.Rect(8, 6, 2, 3, Grey);
+			Canvas c = new Canvas(28, 40);
+			c.Rect(10, 1, 8, 8, Dark);
+			c.Ellipse(6, 6, 16, 26, Dark);
+			c.Rect(6, 12, 16, 14, Dark);
+			c.Ellipse(4, 25, 20, 14, Dark);
+			c.Rect(21, 17, 4, 6, Grey);
 			c.Shade(Grey, Black, Black);
-			c.Rect(5, 12, 2, 2, locked ? Red : Grey);
-			c.Rect(4, 8, 1, 3, Black);
+			// The collar.
+			c.Rect(10, 1, 8, 3, Grey);
+			c.Rect(10, 4, 8, 1, Black);
+			// Finger ridges at the front, a highlight down the back.
+			foreach (int y in new[] { 9, 13, 17 })
+			{
+				c.Rect(18, y, 3, 1, Black);
+			}
+			c.Rect(8, 10, 1, 14, Grey);
+			// The hat switch and the hold button.
+			c.Rect(12, 34, 4, 3, Grey);
+			c.Set(13, 35, Black);
+			c.Set(14, 35, Black);
+			c.Rect(7, 30, 3, 3, locked ? Red : Grey);
+			c.Rect(7, 29, 3, 1, Black);
 			return c;
 		}
 
-		/// <summary>
-		/// The rubber boot where the stick comes up through the floor: a ring plate with a pleated gaiter on it. The cockpit puts its middle
-		/// on the screen's bottom edge, so the top half shows.
-		/// </summary>
+		/// <summary>The stick's shaft, <paramref name="thick"/> pixels across, from (x0, y0) to (x1, y1), shaded like the dash parts.</summary>
+		internal static void Shaft(Canvas c, int x0, int y0, int x1, int y1, int thick)
+		{
+			c.Clear();
+			c.Line(x0, y0, x1, y1, thick, Grey);
+			c.Shade(Light, Dark, Black);
+		}
+
+		/// <summary>The rubber boot where the stick comes up through the floor (below the screen's edge when that is known).</summary>
 		internal static Canvas Boot()
 		{
 			Canvas c = new Canvas(28, 16);
 			c.Ellipse(1, 1, 26, 14, Grey);
 			c.Shade(Light, Dark, Black);
-			// Screws round the ring plate.
-			c.Set(5, 11, Black);
-			c.Set(22, 11, Black);
-			c.Set(3, 8, Black);
-			c.Set(24, 8, Black);
-			// The gaiter: pleats narrowing to the shaft.
 			c.Ellipse(6, 4, 16, 9, Black);
 			c.Ellipse(7, 5, 14, 8, Dark);
-			c.Ellipse(9, 7, 10, 6, Black);
-			c.Ellipse(10, 8, 8, 5, Dark);
-			c.Ellipse(12, 9, 4, 3, Black);
+			c.Ellipse(10, 8, 8, 5, Black);
 			return c;
 		}
 
-		/// <summary>
-		/// The levers' console, <paramref name="w"/> by <paramref name="h"/>: a plate with a lip and screws at the top, a dark channel behind
-		/// each slot (<paramref name="gap"/> either side of the middle, centred <paramref name="up"/> below the top), a colour tag under each
-		/// (yellow collective, red throttle) and panel seams running down off the screen.
-		/// </summary>
-		internal static Canvas Console(int w, int h, int gap, int up)
+		/// <summary>Plastic: <paramref name="a"/> with a scattering of <paramref name="b"/>, the same every time (a hash per pixel).</summary>
+		internal static void Speckle(Canvas c, Color32 a, Color32 b, int seed)
 		{
-			Canvas c = new Canvas(w, h);
-			c.Rect(1, 0, w - 2, h - 3, Dark);
-			c.Rect(3, h - 3, w - 6, 2, Dark);
-			c.Shade(Grey, Black, Black);
-			// The lip along the top.
-			c.Rect(3, h - 4, w - 6, 1, Grey);
-			c.Rect(2, h - 5, w - 4, 1, Black);
-			// Screws in the corners of the top panel.
-			foreach (int x in new[] { 4, w - 5 })
+			for (int y = 0; y < c.Height; y++)
 			{
-				c.Set(x, h - 8, Grey);
-				c.Set(x, h - 9, Black);
+				for (int x = 0; x < c.Width; x++)
+				{
+					Color32 p = c.Get(x, y);
+					if (p.a == 0 || p.r != a.r || p.g != a.g || p.b != a.b)
+					{
+						continue;
+					}
+					uint h = (uint)(x * 73856093) ^ (uint)(y * 19349663) ^ (uint)(seed * 83492791);
+					h ^= h >> 13;
+					h *= 0x5bd1e995;
+					h ^= h >> 15;
+					if ((h & 7) == 0)
+					{
+						c.Set(x, y, b);
+					}
+				}
 			}
-			int mid = h - up;
-			int mx = w / 2;
+		}
+
+		internal static readonly Color32 Plate = new Color32(82, 84, 90, 255);
+		internal static readonly Color32 PlateDot = new Color32(66, 68, 74, 255);
+
+		/// <summary>
+		/// The levers' gate, after the car's H-shifter plate: a speckled grey top seen in perspective (<paramref name="top"/> wide at the back,
+		/// <paramref name="bottom"/> at the front) on a dark front face <paramref name="face"/> rows high, <paramref name="h"/> rows in all,
+		/// with two slots <paramref name="gap"/> either side of the middle from row <paramref name="slot0"/> for <paramref name="travel"/> rows.
+		/// Ticks at the quarters; the collective's (left) hover mark half way in yellow, the throttle's full mark in red. A pixel of margin
+		/// all round for the outline.
+		/// </summary>
+		internal static Canvas Gate(int bottom, int top, int h, int face, int gap, int slot0, int travel)
+		{
+			Canvas c = new Canvas(bottom + 2, h + 2);
+			int mx = c.Width / 2;
+			for (int y = 1; y <= h; y++)
+			{
+				int w = y <= face ? bottom : Mathf.RoundToInt(Mathf.Lerp(bottom, top, (float)(y - face - 1) / Mathf.Max(1, h - face - 1)));
+				c.Rect(mx - w / 2, y, w, 1, y <= face ? Dark : Plate);
+			}
+			Speckle(c, Plate, PlateDot, 7);
+			c.Shade(Light, Black, Black);
+			// The front edge catches the light.
+			int fw = bottom - 2;
+			c.Rect(mx - fw / 2, face + 1, fw, 1, Light);
+			c.Rect(mx - fw / 2, face, fw, 1, Black);
+			// Screws at the back corners.
+			foreach (int x in new[] { mx - top / 2 + 3, mx + top / 2 - 4 })
+			{
+				c.Set(x, h - 3, Light);
+				c.Set(x, h - 4, Black);
+			}
 			foreach (int side in new[] { -1, 1 })
 			{
 				int x = mx + side * gap;
-				// A recess behind the slot, a little longer than its travel.
-				c.Rect(x - 6, mid - 25, 12, 50, Black);
-				c.Rect(x - 5, mid - 24, 10, 48, new Color32(34, 35, 40, 255));
-				// The colour tag under it.
-				c.Rect(x - 3, mid - 30, 6, 3, side < 0 ? Yellow : Red);
-				c.Rect(x - 3, mid - 31, 6, 1, Black);
-			}
-			// A seam across the console under the tags, then every 18 pixels down.
-			for (int y = mid - 35; y > 0; y -= 18)
-			{
-				c.Rect(2, y, w - 4, 1, Black);
-				c.Rect(2, y - 1, w - 4, 1, Grey);
-				c.Set(4, y - 4, Grey);
-				c.Set(w - 5, y - 4, Grey);
-			}
-			return c;
-		}
-
-		/// <summary>The slot a lever runs in, <paramref name="length"/> pixels long.</summary>
-		internal static Canvas Slot(int length, Color32 mark)
-		{
-			Canvas c = new Canvas(8, length);
-			c.Rect(1, 1, 6, length - 2, Grey);
-			c.Shade(Light, Dark, Black);
-			c.Rect(3, 2, 2, length - 4, Black);
-			// Ticks every quarter, the hover mark (half way) in the lever's colour.
-			for (int i = 1; i < 4; i++)
-			{
-				int y = 2 + (length - 4) * i / 4;
-				c.Set(1, y, i == 2 ? mark : Dark);
-				c.Set(6, y, i == 2 ? mark : Dark);
-			}
-			return c;
-		}
-
-		/// <summary>A lever's handle: a bar in <paramref name="colour"/> across its slot.</summary>
-		internal static Canvas Handle(Color32 colour, bool banded)
-		{
-			Canvas c = new Canvas(16, 8);
-			c.Rect(1, 1, 14, 6, colour);
-			if (banded)
-			{
-				for (int x = 2; x < 15; x += 4)
+				c.Rect(x - 3, slot0 - 3, 6, travel + 6, Dark);
+				c.Rect(x - 2, slot0 - 2, 4, travel + 4, Black);
+				for (int q = 0; q <= 4; q++)
 				{
-					c.Rect(x, 1, 2, 6, Black);
+					int y = slot0 + travel * q / 4;
+					Color32 mark = side < 0 && q == 2 ? Yellow : side > 0 && q == 4 ? Red : Light;
+					int len = mark.r == Light.r ? 2 : 3;
+					c.Rect(x - 4 - len, y, len, 1, mark);
+					c.Rect(x + 4, y, len, 1, mark);
 				}
 			}
-			c.Shade(Light, Dark, Black);
+			return c;
+		}
+
+		/// <summary>Height of a lever's shaft in pixels, from the collar in the slot to the knob.</summary>
+		internal const int LeverShaft = 24;
+
+		/// <summary>
+		/// A lever standing up out of its slot: a collar (the pivot, at row 2), a shaft and the knob: the collective's a black head with a
+		/// yellow and black band and a red button, the throttle's a red twist grip.
+		/// </summary>
+		internal static Canvas Lever(bool collective)
+		{
+			Canvas c = new Canvas(22, LeverShaft + 20);
+			int mx = c.Width / 2;
+			c.Rect(mx - 2, 2, 4, LeverShaft + 2, Grey);
+			int k = LeverShaft + 2;
+			if (collective)
+			{
+				c.Rect(mx - 9, k, 18, 14, Dark);
+				c.Rect(mx - 8, k + 14, 16, 2, Dark);
+			}
+			else
+			{
+				c.Ellipse(mx - 9, k, 18, 16, Red);
+			}
+			c.Ellipse(mx - 5, 0, 10, 5, Dark);
+			c.Shade(Light, Black, Black);
+			if (collective)
+			{
+				for (int x = mx - 8; x < mx + 8; x++)
+				{
+					c.Rect(x, k + 4, 1, 3, ((x + 16) / 2) % 2 == 0 ? Yellow : Black);
+				}
+				c.Rect(mx + 3, k + 10, 3, 3, Red);
+				c.Rect(mx - 6, k + 10, 4, 2, Grey);
+			}
+			else
+			{
+				for (int x = mx - 6; x <= mx + 6; x += 3)
+				{
+					c.Rect(x, k + 3, 1, 10, new Color32(120, 30, 28, 255));
+				}
+			}
 			return c;
 		}
 	}

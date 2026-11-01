@@ -8,6 +8,7 @@ namespace HalfGripHelicopter
 	/// cockpit cut off by the screen's bottom edge, as in game (stick at rest, pushed forward-left and held, its boot on the bottom edge;
 	/// the levers' console running off the bottom, collective at the hover mark, throttle full). Exits 1 if the icon is blank.
 	///   dotnet run -c Release --project tools/preview -- out.png
+	/// (or -- --clear out.png: transparent, one pixel per dash pixel, for laying over a screenshot);
 	/// and the helicopter's shape from outside and from the seat (<see cref="Model"/>):
 	///   dotnet run -c Release --project tools/preview -- --model model.png
 	/// </summary>
@@ -25,9 +26,14 @@ namespace HalfGripHelicopter
 				Model.Close(args.Length > 1 ? args[1] : "close.png");
 				return 0;
 			}
-			string path = args.Length > 0 ? args[0] : "preview.png";
-			Canvas sheet = new Canvas(220, 110);
-			sheet.Rect(0, 0, sheet.Width, sheet.Height, new Color32(58, 52, 50, 255));
+			// --clear: the same sheet on a transparent background, one pixel per dash pixel, to lay over a screenshot.
+			bool clear = args.Length > 0 && args[0] == "--clear";
+			string path = clear ? (args.Length > 1 ? args[1] : "clear.png") : args.Length > 0 ? args[0] : "preview.png";
+			Canvas sheet = new Canvas(230, 130);
+			if (!clear)
+			{
+				sheet.Rect(0, 0, sheet.Width, sheet.Height, new Color32(58, 52, 50, 255));
+			}
 
 			Canvas icon = Art.Icon(43, 13);
 			int filled = 0;
@@ -35,19 +41,20 @@ namespace HalfGripHelicopter
 			{
 				filled += c.a > 0 ? 1 : 0;
 			}
-			Blit(sheet, icon, 4, 92);
+			Blit(sheet, icon, 4, 112);
 
-			// Row 0 is the screen's bottom edge: the boots' middles sit on it, the console runs below it.
-			int length = 60;
-			Stick(sheet, 30, 0, length, 0, 0, false);
-			Stick(sheet, 80, 0, length, -12, 12, true);
-			int gap = 10, up = 44 / 2 + 7, down = 50 + 24;
-			Canvas console = Art.Console(2 * gap + 26, up + down, gap, up);
-			Blit(sheet, console, 160 - console.Width / 2, 50 - down);
-			Lever(sheet, 160 - gap, 50, 0.5f, Art.Yellow, true);
-			Lever(sheet, 160 + gap, 50, 1f, Art.Red, false);
+			// Row 0 is the screen's bottom edge: the stick's foot is out of sight below it, the gate's front edge just under it.
+			int length = 80;
+			Stick(sheet, 40, -20, length, 0, 0, false);
+			Stick(sheet, 100, -20, length, -16, 16, true);
+			int gap = 13, slot0 = 15, travel = 36;
+			Canvas gate = Art.Gate(66, 52, 62, 8, gap, slot0, travel);
+			int gx = 175 - gate.Width / 2, gy = -4 - 1;
+			Blit(sheet, gate, gx, gy);
+			Lever(sheet, 175 - gap, gy + slot0, travel, 0.5f, true);
+			Lever(sheet, 175 + gap, gy + slot0, travel, 1f, false);
 
-			Png.Save(path, sheet.Pixels, sheet.Width, sheet.Height, 4);
+			Png.Save(path, sheet.Pixels, sheet.Width, sheet.Height, clear ? 1 : 4);
 			Console.WriteLine("wrote " + path + ", icon " + filled + " of " + icon.Pixels.Length + " pixels drawn");
 			return filled == 0 ? 1 : 0;
 		}
@@ -57,24 +64,21 @@ namespace HalfGripHelicopter
 		{
 			Canvas boot = Art.Boot();
 			Blit(sheet, boot, footX - boot.Width / 2, footY - boot.Height / 2);
-			int gate = 12;
-			Canvas shaft = new Canvas(2 * gate + 9, length + gate + 4);
+			int gate = 16, thick = 6;
+			Canvas shaft = new Canvas(2 * gate + thick + 6, length + gate + 4);
 			int ox = shaft.Width / 2;
-			shaft.Line(ox, 2, ox + dx, Math.Clamp(length + dy, 2, shaft.Height - 2), 3, Art.Grey);
-			shaft.Shade(Art.Light, Art.Dark, Art.Black);
-			Blit(sheet, shaft, footX - ox, footY);
+			Art.Shaft(shaft, ox, 2, ox + dx, Math.Clamp(length + dy, 2, shaft.Height - 4), thick);
+			Blit(sheet, shaft, footX - ox, footY - 2);
 			Canvas grip = Art.Grip(locked);
-			Blit(sheet, grip, footX + dx - grip.Width / 2, footY + length + dy - Mathf.RoundToInt(grip.Height * 0.1f));
+			Blit(sheet, grip, footX + dx - grip.Width / 2, footY + length + dy - 2);
 		}
 
-		private static void Lever(Canvas sheet, int x, int y, float value, Color32 colour, bool banded)
+		/// <summary>A lever with its collar's middle at (x, y0 + value * travel).</summary>
+		private static void Lever(Canvas sheet, int x, int y0, int travel, float value, bool collective)
 		{
-			int slotLength = 44, travel = 36;
-			Canvas slot = Art.Slot(slotLength, banded ? Art.Yellow : Art.Grey);
-			Blit(sheet, slot, x - slot.Width / 2, y - slotLength / 2);
-			Canvas handle = Art.Handle(colour, banded);
-			int hy = y - travel / 2 + Mathf.RoundToInt(value * travel);
-			Blit(sheet, handle, x - handle.Width / 2, hy - handle.Height / 2);
+			Canvas art = Art.Lever(collective);
+			int y = y0 + Mathf.RoundToInt(value * travel);
+			Blit(sheet, art, x - art.Width / 2, y - 2);
 		}
 
 		private static void Blit(Canvas into, Canvas art, int x0, int y0)

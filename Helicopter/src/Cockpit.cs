@@ -16,8 +16,9 @@ namespace HalfGripHelicopter
 	/// </list>
 	/// The hand holds one thing at a time, as in the car: set the throttle and the collective, then take the stick.
 	///
-	/// The controls are drawn so they look fixed to the helicopter: the stick stands up from the floor (its boot on the screen's bottom
-	/// edge, the shaft pivoting there) and the levers sit on a console that runs down off the screen. The car's own dash read-outs that
+	/// The controls are drawn so they look fixed to the helicopter and in the car's own style: a big stick standing up from below the
+	/// screen's bottom edge (pivoting there), and the levers standing up out of a speckled grey gate plate seen in perspective, like the
+	/// car's H-shifter. The car's own dash read-outs that
 	/// mean nothing in the air (the speed and rev dials, the gear and grip box, the rear-view mirror) are hidden with the controls; the
 	/// board at the top right stays (the Open World uses it for its events).
 	///
@@ -38,21 +39,28 @@ namespace HalfGripHelicopter
 		internal float CollectiveValue => Collective != null ? Mathf.Clamp01(Collective.value) : 0f;
 		internal float ThrottleValue => Throttle != null ? Mathf.Clamp01(Throttle.value) : 0f;
 
-		// Stick sizes in dash pixels: the shortest shaft (when the screen's bottom edge can't be found), the gate's half width, and how far
-		// below the screen's bottom edge the foot and the console reach (so a turn of the head or a taller window shows no end).
-		private const int StickLength = 34;
-		private const int Gate = 12;
-		private const int BelowEdge = 0;
-		private const int ConsoleBelow = 24;
-		// Lever sizes in dash pixels.
-		private const int SlotLength = 44;
+		// Stick sizes in dash pixels: the shortest shaft (when the screen's bottom edge can't be found), the gate's half width, the shaft's
+		// thickness, and how far below the screen's bottom edge the foot is (out of sight, so a turn of the head shows no end).
+		private const int StickLength = 40;
+		private const int Gate = 16;
+		private const int ShaftThick = 6;
+		private const int BelowEdge = 20;
+		// The levers' gate plate in dash pixels: front and back widths, height, front face, the slots' first row and travel, the levers'
+		// distance from the middle, and how far the plate's front edge is below the screen's bottom edge.
+		private const int PlateBottom = 66;
+		private const int PlateTop = 52;
+		private const int PlateHeight = 62;
+		private const int PlateFace = 8;
+		private const int Slot0 = 15;
 		private const int Travel = 36;
-		private const int LeverGap = 10;
+		private const int LeverGap = 13;
+		private const int PlateBelow = 4;
 
 		private readonly List<Renderer> hiddenRenderers = new List<Renderer>();
 		private readonly List<InteriorCollider> hiddenColliders = new List<InteriorCollider>();
 		private readonly List<Object> owned = new List<Object>();
 		private readonly List<Transform> dashParts = new List<Transform>();
+		private List<Renderer> dashRenderers;
 		private CarLink link;
 		private float texel = 0.05f;
 		private Material template;
@@ -141,13 +149,15 @@ namespace HalfGripHelicopter
 			Vector3 foot = grip - new Vector3(0f, stickLength * texel, 0f);
 			BuildStick(foot, grip);
 
-			// The levers either side of where the shifter was, on a console: the collective on the left, the throttle on the right.
+			// The levers where the shifter was, in their gate plate at the screen's bottom edge: the collective on the left, the throttle on
+			// the right.
 			Vector3 mid = Snap(new Vector3(lever.center.x, lever.center.y, Mathf.Min(lever.center.z, lever.min.z) - 0.1f));
-			float? consoleFloor = ScreenBottom(view, root, mid);
-			int down = consoleFloor.HasValue ? Mathf.RoundToInt((mid.y - consoleFloor.Value) / texel) + ConsoleBelow : SlotLength;
-			BuildConsole(mid, Mathf.Max(SlotLength / 2 + 4, down));
-			Collective = BuildLever("Collective", mid + new Vector3(-LeverGap * texel, 0f, 0f), Art.Yellow, true);
-			Throttle = BuildLever("Throttle", mid + new Vector3(LeverGap * texel, 0f, 0f), Art.Red, false);
+			float? plateFloor = ScreenBottom(view, root, mid);
+			Vector3 plate = Snap(new Vector3(mid.x, plateFloor.HasValue ? plateFloor.Value - PlateBelow * texel : mid.y - 40f * texel, mid.z));
+			BuildGate(plate);
+			Vector3 slot = plate + new Vector3(0f, (Slot0 - 1) * texel, 0f);
+			Collective = BuildLever("Collective", slot + new Vector3(-LeverGap * texel, 0f, 0f), true);
+			Throttle = BuildLever("Throttle", slot + new Vector3(LeverGap * texel, 0f, 0f), false);
 			Collective.onReleased.AddListener(() =>
 			{
 				if (Collective.value <= 0.05f)
@@ -156,7 +166,7 @@ namespace HalfGripHelicopter
 					dropTaken = false;
 				}
 			});
-			Mod.Info("Helicopter: cockpit built, pixel " + texel.ToString("0.0000") + ", stick at " + grip + " (" + stickLength + " pixels from the floor" + (floor.HasValue ? "" : ", guessed") + "), levers at " + mid + " (console " + down + " pixels down), view " + (view != null ? view.name : "not found") + ", hid " + dashParts.Count + " dash part(s), " + hiddenRenderers.Count + " renderer(s) and " + hiddenColliders.Count + " hand collider(s).");
+			Mod.Info("Helicopter: cockpit built, pixel " + texel.ToString("0.0000") + ", stick at " + grip + " (" + stickLength + " pixels from the floor" + (floor.HasValue ? "" : ", guessed") + "), levers' plate at " + plate + (plateFloor.HasValue ? "" : " (guessed)") + ", view " + (view != null ? view.name : "not found") + ", hid " + dashParts.Count + " dash part(s), " + hiddenRenderers.Count + " renderer(s) and " + hiddenColliders.Count + " hand collider(s).");
 		}
 
 		/// <summary>The camera that draws the dash (the game's <c>InteriorCamera</c>, under the interior's head), or null.</summary>
@@ -419,12 +429,12 @@ namespace HalfGripHelicopter
 			stickBase.SetParent(transform, false);
 			stickBase.localPosition = foot;
 
-			// The boot's top half shows above the screen's bottom edge: the stick comes up through the floor.
+			// Below the screen's bottom edge when that is known (the stick comes up from the floor, out of sight).
 			Part("Boot", Art.Boot(), new Vector2(0.5f, 0.5f), stickBase, Vector3.zero, 0);
 
 			// The shaft: redrawn in whole pixels from the foot to the grip whenever the grip moves (no rotated sprite), so it pivots at the
 			// floor.
-			shaft = new Canvas(2 * Gate + 9, stickLength + Gate + 4);
+			shaft = new Canvas(2 * Gate + ShaftThick + 6, stickLength + Gate + 4);
 			shaftTexture = shaft.Texture("HelicopterShaft");
 			owned.Add(shaftTexture);
 			Part("Shaft", shaftTexture, new Vector2(0.5f, 0f), stickBase, new Vector3(0f, 0f, -0.02f), 1);
@@ -433,11 +443,13 @@ namespace HalfGripHelicopter
 			knob.layer = layer;
 			knob.transform.SetParent(transform, false);
 			knob.transform.localPosition = grip;
-			gripFree = MakeSprite(Art.Grip(false), new Vector2(0.5f, 0.1f), "HelicopterGrip");
-			gripLocked = MakeSprite(Art.Grip(true), new Vector2(0.5f, 0.1f), "HelicopterGripLocked");
+			// Pivot in the collar, where the shaft goes in.
+			Vector2 pivot = new Vector2(0.5f, 2.5f / 40f);
+			gripFree = MakeSprite(Art.Grip(false), pivot, "HelicopterGrip");
+			gripLocked = MakeSprite(Art.Grip(true), pivot, "HelicopterGripLocked");
 			gripRenderer = Part("Sprite", gripFree, knob.transform, new Vector3(0f, 0f, -0.04f), 2);
-			InteriorCircleCollider touch = Touch<InteriorCircleCollider>(knob.transform, new Vector3(0f, 6f * texel, -0.1f));
-			touch.radius = 8f * texel;
+			InteriorCircleCollider touch = Touch<InteriorCircleCollider>(knob.transform, new Vector3(0f, 20f * texel, -0.1f));
+			touch.radius = 15f * texel;
 			touch.hitBoxExpand = 2f * texel;
 
 			// Added after the pose is set: the gate takes its middle from where the object stands as it wakes.
@@ -468,39 +480,31 @@ namespace HalfGripHelicopter
 			});
 		}
 
-		/// <summary>
-		/// The levers' console: a plate the width of both slots, from just above them down <paramref name="down"/> pixels (past the screen's
-		/// bottom edge), behind the slots in depth and order, so the levers read as mounted in it.
-		/// </summary>
-		private void BuildConsole(Vector3 middle, int down)
+		/// <summary>The levers' gate plate, its front edge's middle at <paramref name="at"/>, behind the levers in depth and order.</summary>
+		private void BuildGate(Vector3 at)
 		{
-			Transform console = new GameObject("LeverConsole").transform;
-			console.gameObject.layer = layer;
-			console.SetParent(transform, false);
-			console.localPosition = middle;
-			int up = SlotLength / 2 + 7;
-			Canvas art = Art.Console(2 * LeverGap + 26, up + down, LeverGap, up);
-			// Pivot at the levers' middle, so the plate's top is <up> pixels above it.
-			Part("Sprite", art, new Vector2(0.5f, (float)down / art.Height), console, new Vector3(0f, 0f, 0.03f), -1);
+			Transform gate = new GameObject("LeverGate").transform;
+			gate.gameObject.layer = layer;
+			gate.SetParent(transform, false);
+			gate.localPosition = at;
+			Canvas art = Art.Gate(PlateBottom, PlateTop, PlateHeight, PlateFace, LeverGap, Slot0, Travel);
+			Part("Sprite", art, new Vector2(0.5f, 1f / art.Height), gate, new Vector3(0f, 0f, 0.03f), 0);
 		}
 
-		private LinearObject BuildLever(string name, Vector3 middle, Color32 colour, bool banded)
+		/// <summary>A lever standing in its slot, its collar at <paramref name="bottom"/> (value 0) and up <see cref="Travel"/> pixels.</summary>
+		private LinearObject BuildLever(string name, Vector3 bottom, bool collective)
 		{
-			Transform slot = new GameObject(name + "Slot").transform;
-			slot.gameObject.layer = layer;
-			slot.SetParent(transform, false);
-			slot.localPosition = middle;
-			Part("Sprite", Art.Slot(SlotLength, banded ? Art.Yellow : Art.Grey), new Vector2(0.5f, 0.5f), slot, Vector3.zero, 0);
-
 			GameObject handle = new GameObject(name);
 			handle.layer = layer;
 			handle.transform.SetParent(transform, false);
 			// At the bottom of its travel: the lever's value runs 0 (down) to 1 (up).
-			handle.transform.localPosition = middle - new Vector3(0f, Travel * 0.5f * texel, 0f);
-			Part("Sprite", Art.Handle(colour, banded), new Vector2(0.5f, 0.5f), handle.transform, new Vector3(0f, 0f, -0.04f), 2);
-			InteriorSquareCollider touch = Touch<InteriorSquareCollider>(handle.transform, new Vector3(0f, 0f, -0.1f));
-			touch.width = 16f * texel;
-			touch.height = 10f * texel;
+			handle.transform.localPosition = bottom;
+			Canvas art = Art.Lever(collective);
+			Part("Sprite", art, new Vector2(0.5f, 2.5f / art.Height), handle.transform, new Vector3(0f, 0f, -0.04f), 2);
+			// The hand takes it by the knob.
+			InteriorSquareCollider touch = Touch<InteriorSquareCollider>(handle.transform, new Vector3(0f, (Art.LeverShaft + 8) * texel, -0.1f));
+			touch.width = 20f * texel;
+			touch.height = 20f * texel;
 			touch.hitBoxExpand = 1f * texel;
 
 			LinearObject lever = handle.AddComponent<LinearObject>();
@@ -619,6 +623,7 @@ namespace HalfGripHelicopter
 			}
 			HideLockButtons();
 			HideFlashers();
+			HideDash();
 			DrawShaft();
 		}
 
@@ -639,6 +644,36 @@ namespace HalfGripHelicopter
 			if (link.sw.lockButtonPressed != null)
 			{
 				link.sw.lockButtonPressed.enabled = false;
+			}
+		}
+
+		/// <summary>
+		/// The read-outs' renderers off every frame: some of their scripts switch sprites on each frame (the tyre monitor, the shift arrows),
+		/// which the half-second <see cref="Hide"/> left showing as a white "||" over the panel.
+		/// </summary>
+		private void HideDash()
+		{
+			if (dashRenderers == null)
+			{
+				dashRenderers = new List<Renderer>();
+				foreach (Transform t in dashParts)
+				{
+					if (t != null)
+					{
+						dashRenderers.AddRange(t.GetComponentsInChildren<Renderer>(true));
+					}
+				}
+			}
+			foreach (Renderer r in dashRenderers)
+			{
+				if (r != null && r.enabled)
+				{
+					r.enabled = false;
+					if (!hiddenRenderers.Contains(r))
+					{
+						hiddenRenderers.Add(r);
+					}
+				}
 			}
 		}
 
@@ -674,9 +709,7 @@ namespace HalfGripHelicopter
 			}
 			shaftDrawn = to;
 			int ox = shaft.Width / 2;
-			shaft.Clear();
-			shaft.Line(ox, 2, ox + to.x, Mathf.Clamp(to.y, 2, shaft.Height - 2), 3, Art.Grey);
-			shaft.Shade(Art.Light, Art.Dark, Art.Black);
+			Art.Shaft(shaft, ox, 2, ox + to.x, Mathf.Clamp(to.y, 2, shaft.Height - 4), ShaftThick);
 			shaftTexture.SetPixels32(shaft.Pixels);
 			shaftTexture.Apply(false, false);
 		}
