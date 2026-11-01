@@ -44,7 +44,17 @@ namespace HalfGripHelicopter
 				// The GPS's mounting plate over the face where the GPS stands, with a stand-in casing (grey box, dark screen) at the size the
 				// owner's screenshot shows it (about 34 x 30 dash pixels).
 				const int gw = 34, gh = 30;
-				Canvas mount = Art.Mount(gw, gh, 5, 4);
+				// The casing's shape, its corners cut, as the plate's hole.
+				bool[] hole = new bool[gw * gh];
+				for (int y = 0; y < gh; y++)
+				{
+					for (int x = 0; x < gw; x++)
+					{
+						int dx = System.Math.Min(x, gw - 1 - x), dy = System.Math.Min(y, gh - 1 - y);
+						hole[y * gw + x] = dx + dy >= 2;
+					}
+				}
+				Canvas mount = Art.Mount(gw, gh, 5, 4, hole);
 				int mx = 217 - 6, my = 112 - 10;
 				for (int y = 0; y < mount.Height; y++)
 				{
@@ -57,8 +67,17 @@ namespace HalfGripHelicopter
 						}
 					}
 				}
-				face.Rect(mx + 6, my + 10, gw, gh, Art.Grey);
-				face.Rect(mx + 9, my + 13, gw - 6, gh - 6, new Color32(60, 120, 60, 255));
+				for (int y = 0; y < gh; y++)
+				{
+					for (int x = 0; x < gw; x++)
+					{
+						if (hole[y * gw + x])
+						{
+							bool inner = x >= 3 && y >= 3 && x < gw - 3 && y < gh - 3;
+							face.Set(mx + 6 + x, my + 10 + y, inner ? new Color32(60, 120, 60, 255) : Art.Grey);
+						}
+					}
+				}
 				Png.Save(args.Length > 1 ? args[1] : "fitted.png", face.Pixels, 258, 159, 3);
 				Console.WriteLine("wrote fitted panel 258x159");
 				return 0;

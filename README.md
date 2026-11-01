@@ -1,6 +1,6 @@
 # HalfGripHelicopter
 
-**Version 0.2.3** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
+**Version 0.2.4** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
 
 A chassis item, **Helicopter**, that turns your car into a helicopter. Made for the
 [Open World](https://github.com/htubdawg/HalfGripOpenWorld) mod, but it works in any race.
