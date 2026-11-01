@@ -5,6 +5,12 @@
 A chassis item, **Helicopter**, that turns your car into a helicopter. Made for the
 [Open World](https://github.com/htubdawg/HalfGripOpenWorld) mod, but it works in any race.
 
+### ▶ Watch it fly
+
+[![Helicopter showcase on YouTube](https://img.youtube.com/vi/4XyWdDLQcCk/hqdefault.jpg)](https://www.youtube.com/watch?v=4XyWdDLQcCk)
+
+A short showcase of the Helicopter in game. *(Click the picture to watch it on YouTube.)*
+
 ![The icon and the cockpit's controls](docs/preview.png)
 
 ## What it does
