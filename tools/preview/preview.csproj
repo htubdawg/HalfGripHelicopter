@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Draws the mod's pictures with its own drawing code (Art.cs) outside the game. How to run it: see Program.cs. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>CS0436;CS1701;CS1702</NoWarn>
+    <Refs Condition="'$(Refs)' == ''">$(MSBuildThisFileDirectory)../../../halfgriprefs</Refs>
+    <Src>$(MSBuildThisFileDirectory)../../Helicopter/src</Src>
+    <Managed>$(Refs)/game/HalfGrip_Data/Managed</Managed>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Art.cs is plain pixel arrays; its Unity types are managed structs (Color32, Mathf). -->
+    <Compile Include="$(Src)/Art.cs;$(Src)/Shape.cs;$(Src)/Panel.cs;Program.cs;Png.cs;Model.cs" />
+    <Reference Include="$(Managed)/UnityEngine.CoreModule.dll" />
+  </ItemGroup>
+</Project>
