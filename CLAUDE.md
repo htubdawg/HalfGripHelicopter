@@ -109,7 +109,7 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 ## Status (keep current)
 
-**Now:** 0.1.9 on `claude/practical-thompson-8lxknd`, PR to `main` opened at the owner's request (they asked to prepare it for
+**Now:** 0.1.9 on `claude/practical-thompson-8lxknd`, PR #1 to `main` opened at the owner's request (they asked to prepare it for
 merging). 0.1.9 (owner's asks after 0.1.8): the right-click lock no longer uses `frozen` (which stopped the hand moving the stick);
 it only keeps the spring off on release, so a locked stick still moves while grabbed and stays where let go. Pitch/bank was too
 quick: the attitude spring's frequency is now `Flight.TiltResponse` (default 3, was a fixed 5) and its turning rate is capped at
