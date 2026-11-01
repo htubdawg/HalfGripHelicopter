@@ -32,7 +32,7 @@ changes the state of things, this file must already say everything needed to car
 | `HeliItem.cs` | The item: a clone of chassis `aero_1` (or any chassis) with stock numbers, no downforce, a drawn icon; `Fitted`/`Current` read `PlayerLoadout` |
 | `Lock.cs` | Fits alone but for `Lock.Allowed` (any `UpgradeCategory.GUN`, and the MiniMap's GPS by its id `minimap.gps` only): `InventorySlot.OnDrop` (refuse others / clear others), `LoadoutSpawner.Awake` (cut the loadout to the allowed items, stats again from them), `LoadoutRefit.Swap` (live refits); `CarLink.FixedUpdate` skipped while flying; no `ACH_BIG_AIR`; the Open World's `ShifterHand` patched by name |
 | `HeliDriver.cs` | Every 0.25 s: the player's `CarLink` + item fitted → builds cockpit, flight, rotor; takes them off when not; `DriveCar` in place of the car's driving (brakes when parked, `engineIndicator` = rotor speed) |
-| `Cockpit.cs` | Hides wheel, all shifters, handbrake (renderers + `InteriorCollider`s off, objects alive, re-hidden every 0.5 s; the wheel's lock-button sprites every frame, since `NSteeringWheel.Update` turns one back on); stick = `DoubleLinearObject` (spring off while held, on when let go, right click toggles a lock that leaves the spring off on release, not the game's `frozen`, so a locked stick still moves while held), levers = `LinearObject` with no spring; placed and sized from the hidden parts' bounds and the dash's pixel size; shaft redrawn in whole pixels |
+| `Cockpit.cs` | Finds the MiniMap's GPS on the dash (`GpsScreen` by name, `FindGps`) and mounts it on a plate sprite (`BuildMount`, `Art.Mount`), whose box keeps the panel's face plain behind it; hides the car's read-outs (dials, gear box, mirror, money and enemy-targeting lights); hides wheel, all shifters, handbrake (renderers + `InteriorCollider`s off, objects alive, re-hidden every 0.5 s; the wheel's lock-button sprites every frame, since `NSteeringWheel.Update` turns one back on); stick = `DoubleLinearObject` (spring off while held, on when let go, right click toggles a lock that leaves the spring off on release, not the game's `frozen`, so a locked stick still moves while held), levers = `LinearObject` with no spring; placed and sized from the hidden parts' bounds and the dash's pixel size; shaft redrawn in whole pixels |
 | `Flight.cs` | The flight model (see its summary): thrust `m g 2 C rpm²`, climb-rate damping `g/ClimbRate`, attitude hold (critically damped at `TiltResponse` rad/s, default 3, turning capped at `TiltRate` deg/s, default 30), yaw from the stick + tail fin, drag balanced at `TopSpeed` |
 | `Shape.cs` | The helicopter's geometry as plain triangles per `Paint` (Unity's managed structs only, so `tools/preview` draws it too): `Measure` sizes the pod from the car (length >= 0.62 car lengths, height 0.4-0.5 of the length, head 57% up and 40% back), `Build` gives the outer skin + outside parts, the cabin (inner skin facing in with holes at the glass, glareshield shelf, panel pedestal with a drawn face, floor, seats), the panes (glass seen from inside), the main and tail rotors. Windows are cut at level heights; every edge level owns a mesh column on every ring (`Angles`), so edges are clean. Pixel arrays for the speckle and glass textures; `PanelFace` (the face's corner and edge vectors), `PanelSize`, `PanelPixels` (the guessed face). No `Quaternion.Euler` (native; use `AboutX`/`AboutY`) |
 | `Airframe.cs` | Hides the car's skin models (`CarSkinController.carModels`) and wheel meshes (re-hidden every 0.5 s, shown again on removal); turns `Shape`'s pieces into meshes on the body's layer, one URP Lit material per paint, `_Cull` Back, speckle and panel textures; the panes in the game's `Sprite-Unlit-Default` (alpha blended, always in the build, both sides; hidden from outside by the opaque outer glass); the head is the car's child camera tagged MainCamera; the cabin and panes are always drawn except for the camera named `RearViewCamera` (`beginCameraRendering`); rotors spin with `Flight.Rpm`; `FitPanel` redraws the panel's face round the cockpit's controls (below) |
@@ -64,6 +64,15 @@ changes the state of things, this file must already say everything needed to car
 - `CameraSwitch` hides the car's `windshields` and shows its `interiorModels` in the cockpit view.
 - The game's car: wheels at x +-1.65, z 2.75 / -2.5 (car space). Real body bounds not yet known (see Status).
 - `NSteeringWheel.Update` turns one of its lock-button sprites back on every frame (hence the every-frame hide).
+- Two small round lights above the shifter, at `CarInterior/DollarSign` (`MoneyIndicator`, blinks on money) and
+  `CarInterior/EnemyTargetingLED` (`EnemyTargetingIndicator`): each a dark socket sprite with a blinking one over it.
+- The "AirTime x1.2s" line on the screen is a combo: `CarControllerNew.FixedUpdate` calls
+  `ComboManager.IncrementComboContinuous("AirTime", ...)` while no wheel touches (`Lock.NoAirTime` skips it while flying). Other
+  combos: Drift (`GripIndicator`), SpinOut (`CarLink.FixedUpdate`, already skipped), OverTAKE, Kill, ShortCut.
+- Dash sprites draw in **sorting order first**, depth only after; unlit sprites (the GPS's screen) write no depth. A part meant to
+  be behind another dash sprite needs a lower sorting order, not only a larger z (0.2.2's GPS plate covered the GPS).
+- The MiniMap's GPS builds its sprites (`Casing`, `Screen`) in `GpsScreen.Start`/`Update`, after the cockpit; a live refit can add
+  or remove it.
 - Unity's front faces are clockwise; `Vector3.Cross(b - a, c - a)` points at the viewer. The URP Lit materials cull back faces.
 - See-through materials: the game ships `Universal Render Pipeline/2D/Sprite-Unlit-Default` (alpha blended, both sides) everywhere;
   a transparent URP Lit variant may be stripped from the build, so don't use one.
@@ -97,7 +106,7 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
   tools/check.sh <halfgriprefs>/game <HalfGripTools>/dist/BepInEx/plugins/HalfGripTools/HalfGripTools.dll
   ```
 - Pictures: `dotnet run -c Release --project tools/preview -p:Refs=<halfgriprefs> -- docs/preview.png` (exits 1 on a blank icon).
-  `-- --panel <png>` draws the panel's face as first guessed. `-- --clear <png>` draws the same sheet transparent at one pixel per dash pixel, to lay over an owner's screenshot.
+  `-- --panel <png>` draws the panel's face as first guessed; `-- --fitted <png>` as fitted in the owner's 0.1.7 log, with the GPS's plate and a stand-in GPS. `-- --clear <png>` draws the same sheet transparent at one pixel per dash pixel, to lay over an owner's screenshot.
   Look at it after any art change.
 - Model: `dotnet run -c Release --project tools/preview -p:Refs=<halfgriprefs> -- --model docs/model.png` draws `Shape` with back-face
   culling and depth, from outside and from the head (ahead, left, right, the mirror back), for the game's car and a smaller one.
@@ -109,9 +118,30 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 ## Status (keep current)
 
-**Now:** 0.2.0 released (PR #1 merged to `main`). The README links the owner's showcase video
-(https://www.youtube.com/watch?v=4XyWdDLQcCk) as a thumbnail under the intro; that change is on `claude/practical-thompson-8lxknd`,
-restarted from `main`, PR #2. 0.2.0 (owner): guns (any `UpgradeCategory.GUN`) and the MiniMap's GPS (id `minimap.gps` only, not other MEDIUM items) may
+**Now:** 0.2.4 on `claude/practical-thompson-8lxknd`, PR #3 (not merged). **0.2.3 test** (owner's screenshot, Open World, a gun fitted):
+the plate *still* covered the whole GPS (only the plate's speckle and seat line showed where the GPS should be), so sorting one
+order below the GPS was not the cause, or not the only one. Likely depth: the plate (lit, writes depth) stood at the GPS's *front*
+z (the screen) + 0.03, while the casing stands 0.02 world units behind the screen, and in the interior's units (root scale unknown)
+that can put the plate in front of the casing; also the plate's material queue may differ from the GPS's (not known: the next log
+says). **0.2.4** makes it impossible to cover: `Art.Mount(..., hole)` leaves the GPS's own pixels see-through (`Cockpit.GpsHole`
+reads the casing's picture through a render texture, since the GPS makes it unreadable, plus the screen's whole box; falls back to
+cutting the whole box), the seat shadow follows the hole's edge, and the plate stands behind the GPS's *back* z + 0.03. Logs `the
+GPS's plate has a hole of N of its M middle pixels` and `the GPS's plate is WxH px at z ... (GPS a to b), sorting L/O, material
+'...' queue Q`. Checked: compiles, `tools/preview -- --fitted` (stand-in casing with cut corners) looked at. **Owner tested 0.2.4: "looks good"**;
+PR #3 retitled for 0.2.4, ready to merge. **Next step:** the owner merges PR #3; then restart the branch from `origin/main`. History of 0.2.x: Owner's asks after testing 0.2.0 (screenshot: Open World,
+GPS fitted): (1) two small lights left over above the old shifter: the car's money and enemy-targeting lights (`DollarSign`,
+`EnemyTargetingLED`), now hidden with the other read-outs; (2) the "AirTime" combo line on the screen: `Lock.NoAirTime` skips it
+while flying; (3) the GPS looked stuck on, over the panel's drawn gauges. 0.2.1 drew a dark recessed bay on the panel's face round it:
+the owner's test (screenshot) said "not quite what we were going for" (a thin dark frame on a blank stretch of the 3D face, which is
+seen at an angle, so it never quite lines up with the flat GPS sprite). Asked; the owner chose **mounted on a plate**: 0.2.2 draws a
+speckled grey plate sprite in the gate's style (`Art.Mount`: 5-pixel rim, 4-row dark front face, a dark seat line round the casing,
+corner screws) 0.03 behind the GPS's casing, in the dash's own pixels so it lines up exactly (`Cockpit.BuildMount`). The panel's face
+is only kept plain behind the plate (no bay). `HeliDriver` checks the GPS every 0.25 s; when it comes, moves or goes the plate is
+rebuilt and the face redrawn (not while the head is turned, `Airframe.HeadAsFitted`). Logs `the GPS is on the dash at ..., on a
+plate` and a `GPS` zone in `panel fitted`. Checked: compiles, `tools/preview -- --fitted` looked at. **Not tested in game.** **Next
+step:** the owner's test of 0.2.2 (the GPS on its plate; lights gone; no AirTime line). If the plate looks wrong, tune `MountRim`,
+`MountFace` and `Art.Mount`. The plate's sprites (texture, material) from a rebuild are only freed with the cockpit (rare, fine).
+Earlier: 0.2.0 (owner): guns (any `UpgradeCategory.GUN`) and the MiniMap's GPS (id `minimap.gps` only, not other MEDIUM items) may
 go on with the Helicopter, on every route (`Lock.Allowed`). Checked in the Forest dump: the guns are prebuilt in `CarInterior` high
 up (y about 8, switched by `GunLoadoutActivator` from `PlayerStats.gun`), far from the stick and levers and not among the hidden
 read-outs; their outside parts go on `ExteriorSocket`s beside the body model, which `Airframe` doesn't hide (they may sit inside the

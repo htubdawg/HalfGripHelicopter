@@ -15,14 +15,19 @@ namespace HalfGripHelicopter
 	/// </summary>
 	internal static class Panel
 	{
-		/// <summary>A part of the face kept clear, in texture space (0..1, v up). Console: drawn as the levers' plate, else plain.</summary>
+		/// <summary>
+		/// A part of the face kept clear, in texture space (0..1, v up). Console: drawn as the levers' plate; Mount: the MiniMap's GPS
+		/// on its plate (kept plain, like the stick's); else plain.
+		/// </summary>
 		internal struct Zone
 		{
 			internal float U0, V0, U1, V1;
 			internal bool Console;
+			internal bool Mount;
 
-			internal Zone(float u0, float v0, float u1, float v1, bool console)
+			internal Zone(float u0, float v0, float u1, float v1, bool console, bool mount = false)
 			{
+				Mount = mount;
 				U0 = Mathf.Min(u0, u1);
 				U1 = Mathf.Max(u0, u1);
 				V0 = Mathf.Min(v0, v1);
@@ -77,9 +82,10 @@ namespace HalfGripHelicopter
 				{
 					continue;
 				}
-				for (int y = Mathf.Max(0, y0 - 2); y < Mathf.Min(h, y1 + 2); y++)
+				int keep = 2;
+				for (int y = Mathf.Max(0, y0 - keep); y < Mathf.Min(h, y1 + keep); y++)
 				{
-					for (int x = Mathf.Max(0, x0 - 2); x < Mathf.Min(w, x1 + 2); x++)
+					for (int x = Mathf.Max(0, x0 - keep); x < Mathf.Min(w, x1 + keep); x++)
 					{
 						used[y * w + x] = true;
 					}

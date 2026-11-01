@@ -49,6 +49,20 @@ namespace HalfGripHelicopter
 		/// </summary>
 		internal readonly List<(Vector3 Min, Vector3 Max, bool Console)> Areas = new List<(Vector3, Vector3, bool)>();
 
+		/// <summary>
+		/// The MiniMap's GPS with the plate it is mounted on (a box in the interior's space, at the plate's depth), or null when none is
+		/// fitted. The panel's face is kept plain behind it, so no drawn gauge peeks out round it. Kept up to date by <see cref="FindGps"/>.
+		/// </summary>
+		internal (Vector3 Min, Vector3 Max)? Gps { get; private set; }
+
+		/// <summary>How far the GPS's mounting plate reaches past its casing on each side, and below it (its front face), in dash pixels.</summary>
+		private const int MountRim = 5;
+		private const int MountFace = 4;
+		/// <summary>How far behind the GPS's backmost sprite the plate stands (toward the camera is -z), like the gate behind the levers.</summary>
+		private const float MountBack = 0.03f;
+
+		private GameObject mount;
+
 		/// <summary>A point in the interior's space as a point in the world.</summary>
 		internal Vector3 World(Vector3 local) => transform.parent != null ? transform.parent.TransformPoint(local) : local;
 
@@ -243,7 +257,8 @@ namespace HalfGripHelicopter
 
 		/// <summary>
 		/// The car's dash read-outs that mean nothing in a helicopter, each as its group under the interior (so its backing sprite goes with
-		/// it): the speed display with the rev and speed dials, the gear and grip box, the rear-view mirror. Not the board at the top right.
+		/// it): the speed display with the rev and speed dials, the gear and grip box, the rear-view mirror, the money and enemy-targeting
+		/// lights. Not the board at the top right.
 		/// </summary>
 		private void FindDashParts(Transform root)
 		{
@@ -269,6 +284,15 @@ namespace HalfGripHelicopter
 			Add(link.gearIndicator);
 			Add(link.indicatorstall);
 			Add(link.indicatormoneyshift);
+			// The money light and the enemy-targeting light above the shifter (each a dark socket with a blinking sprite over it).
+			foreach (MoneyIndicator m in root.GetComponentsInChildren<MoneyIndicator>(true))
+			{
+				Add(m);
+			}
+			foreach (EnemyTargetingIndicator e in root.GetComponentsInChildren<EnemyTargetingIndicator>(true))
+			{
+				Add(e);
+			}
 			foreach (SpeedDashboard d in root.GetComponentsInChildren<SpeedDashboard>(true))
 			{
 				Add(d);
@@ -347,8 +371,14 @@ namespace HalfGripHelicopter
 		/// <summary>The bounds of a part's shown sprites in the interior's own space (before they are hidden).</summary>
 		private static Bounds LocalBounds(Transform part, Transform root, Bounds fallback)
 		{
+			return TryLocalBounds(part, root, out Bounds b) ? b : fallback;
+		}
+
+		/// <summary>The bounds of a part's shown sprites in the interior's own space; false if none is shown.</summary>
+		private static bool TryLocalBounds(Transform part, Transform root, out Bounds b)
+		{
 			bool any = false;
-			Bounds b = default;
+			b = default;
 			foreach (SpriteRenderer r in part.GetComponentsInChildren<SpriteRenderer>(false))
 			{
 				if (!r.enabled || r.sprite == null)
@@ -371,7 +401,212 @@ namespace HalfGripHelicopter
 					}
 				}
 			}
-			return any ? b : fallback;
+			return any;
+		}
+
+		private MonoBehaviour gpsScreen;
+		private float nextGpsSearch;
+
+		/// <summary>
+		/// Looks for the MiniMap's GPS in the interior (its <c>GpsScreen</c>, found by name: each mod is compiled on its own) and measures
+		/// its shown sprites. True when its box changed since the last look (it was fitted, built, moved or taken off), so the panel's face
+		/// must be drawn again. The GPS builds its sprites a frame or more after it is spawned, and a live refit can add or take it off.
+		/// </summary>
+		internal bool FindGps()
+		{
+			Transform root = transform.parent;
+			if (root == null)
+			{
+				return false;
+			}
+			if (gpsScreen == null && Time.unscaledTime >= nextGpsSearch)
+			{
+				nextGpsSearch = Time.unscaledTime + 1f;
+				foreach (MonoBehaviour m in root.GetComponentsInChildren<MonoBehaviour>(false))
+				{
+					if (m != null && m.GetType().Name == "GpsScreen")
+					{
+						gpsScreen = m;
+						break;
+					}
+				}
+			}
+			(Vector3 Min, Vector3 Max)? now = null;
+			if (gpsScreen != null && gpsScreen.isActiveAndEnabled && TryLocalBounds(gpsScreen.transform, root, out Bounds b))
+			{
+				now = (new Vector3(b.min.x, b.min.y, b.min.z), new Vector3(b.max.x, b.max.y, b.max.z));
+			}
+			bool same = now.HasValue == gpsBox.HasValue && (!now.HasValue || ((now.Value.Min - gpsBox.Value.Min).sqrMagnitude < texel * texel * 0.25f && (now.Value.Max - gpsBox.Value.Max).sqrMagnitude < texel * texel * 0.25f));
+			if (same)
+			{
+				return false;
+			}
+			gpsBox = now;
+			BuildMount();
+			Mod.Info("Helicopter: " + (now.HasValue ? "the GPS is on the dash at " + now.Value.Min + " to " + now.Value.Max + ", on a plate" : "no GPS on the dash") + ".");
+			return true;
+		}
+
+		/// <summary>The GPS's own sprites' box (casing and screen), as last measured; min z is its front (the screen), max z its back.</summary>
+		private (Vector3 Min, Vector3 Max)? gpsBox;
+
+		/// <summary>
+		/// The GPS's mounting plate: a speckled grey plate in the dash's style (like the levers' gate) a few pixels round the casing, with a
+		/// dark front face below and screws, drawn as a dash sprite just behind the GPS, so it lines up with it pixel for pixel and the GPS
+		/// looks fitted to the helicopter rather than stuck over the panel. Built again when the GPS moves, taken off when it goes.
+		/// </summary>
+		private void BuildMount()
+		{
+			if (mount != null)
+			{
+				Destroy(mount);
+				mount = null;
+			}
+			Gps = null;
+			if (!gpsBox.HasValue)
+			{
+				return;
+			}
+			Vector3 min = gpsBox.Value.Min, max = gpsBox.Value.Max;
+			int w = Mathf.Max(4, Mathf.RoundToInt((max.x - min.x) / texel));
+			int h = Mathf.Max(4, Mathf.RoundToInt((max.y - min.y) / texel));
+			Canvas art = Art.Mount(w, h, MountRim, MountFace, GpsHole(min, w, h));
+			mount = new GameObject("GpsMount");
+			mount.layer = layer;
+			mount.transform.SetParent(transform, false);
+			// The art's bottom-left corner (its 1-pixel outline) at the casing's corner less the rim and the front face, behind the GPS's
+			// back (0.2.2 stood it behind the screen only, by less than the screen stands off the casing).
+			Vector3 corner = new Vector3(min.x - (MountRim + 1) * texel, min.y - (MountRim + MountFace + 1) * texel, max.z + MountBack);
+			mount.transform.localPosition = corner;
+			SpriteRenderer plate = Part("Sprite", art, Vector2.zero, mount.transform, Vector3.zero, 0);
+			// The plate has a hole where the GPS is, so it cannot cover it however the two are drawn. Still sorted before it: sprites are
+			// drawn in sorting order first and depth only after. The GPS's own layer, one order below its lowest sprite.
+			if (gpsScreen != null)
+			{
+				bool any = false;
+				int order = 0, layerId = plate.sortingLayerID;
+				foreach (SpriteRenderer r in gpsScreen.GetComponentsInChildren<SpriteRenderer>(true))
+				{
+					if (!any || r.sortingOrder < order)
+					{
+						order = r.sortingOrder;
+						layerId = r.sortingLayerID;
+						any = true;
+					}
+				}
+				if (any)
+				{
+					plate.sortingLayerID = layerId;
+					plate.sortingOrder = order - 1;
+				}
+				Mod.Info("Helicopter: the GPS's plate is " + art.Width + "x" + art.Height + " px at z " + corner.z.ToString("0.000") + " (GPS " + min.z.ToString("0.000") + " to " + max.z.ToString("0.000") + "), sorting " + plate.sortingLayerID + "/" + plate.sortingOrder + ", material '" + (plate.sharedMaterial != null ? plate.sharedMaterial.shader.name + "' queue " + plate.sharedMaterial.renderQueue : "none'"));
+			}
+			Gps = (new Vector3(corner.x, corner.y, corner.z), new Vector3(corner.x + art.Width * texel, corner.y + art.Height * texel, corner.z));
+		}
+
+		/// <summary>
+		/// Which of the w x h dash pixels from <paramref name="min"/> (the interior's space) the GPS's own sprites cover: the casing where its
+		/// picture is not see-through, and the whole of every other sprite (the screen). These are cut out of the plate. Null (cut the whole
+		/// box) when the casing's picture can't be read.
+		/// </summary>
+		private bool[] GpsHole(Vector3 min, int w, int h)
+		{
+			Transform root = transform.parent;
+			if (gpsScreen == null || root == null)
+			{
+				return null;
+			}
+			try
+			{
+				bool[] hole = new bool[w * h];
+				int cut = 0;
+				foreach (SpriteRenderer r in gpsScreen.GetComponentsInChildren<SpriteRenderer>(false))
+				{
+					if (!r.enabled || r.sprite == null)
+					{
+						continue;
+					}
+					Sprite sprite = r.sprite;
+					Color32[] pixels = null;
+					int tw = 0;
+					if (r.gameObject.name == "Casing")
+					{
+						pixels = ReadPixels(sprite.texture);
+						if (pixels == null)
+						{
+							return null;
+						}
+						tw = sprite.texture.width;
+					}
+					Bounds local = sprite.bounds;
+					Rect rect = sprite.textureRect;
+					for (int j = 0; j < h; j++)
+					{
+						for (int i = 0; i < w; i++)
+						{
+							if (hole[j * w + i])
+							{
+								continue;
+							}
+							Vector3 world = root.TransformPoint(min + new Vector3((i + 0.5f) * texel, (j + 0.5f) * texel, 0f));
+							Vector3 p = r.transform.InverseTransformPoint(world);
+							float u = (p.x - local.min.x) / Mathf.Max(1e-6f, local.size.x), v = (p.y - local.min.y) / Mathf.Max(1e-6f, local.size.y);
+							if (u < 0f || v < 0f || u >= 1f || v >= 1f)
+							{
+								continue;
+							}
+							if (pixels != null)
+							{
+								int x = Mathf.Clamp((int)(rect.x + u * rect.width), 0, tw - 1);
+								int y = Mathf.Clamp((int)(rect.y + v * rect.height), 0, sprite.texture.height - 1);
+								if (pixels[y * tw + x].a < 128)
+								{
+									continue;
+								}
+							}
+							hole[j * w + i] = true;
+							cut++;
+						}
+					}
+				}
+				Mod.Info("Helicopter: the GPS's plate has a hole of " + cut + " of its " + (w * h) + " middle pixels.");
+				return cut > 0 ? hole : null;
+			}
+			catch (System.Exception e)
+			{
+				Mod.Log.LogWarning("Helicopter: could not read the GPS's shape, cutting its whole box out of the plate: " + e.Message);
+				return null;
+			}
+		}
+
+		/// <summary>A texture's pixels, through a render texture when it is not readable (the GPS makes its casing's unreadable).</summary>
+		private static Color32[] ReadPixels(Texture2D texture)
+		{
+			if (texture == null)
+			{
+				return null;
+			}
+			if (texture.isReadable)
+			{
+				return texture.GetPixels32();
+			}
+			RenderTexture rt = RenderTexture.GetTemporary(texture.width, texture.height, 0, RenderTextureFormat.ARGB32);
+			RenderTexture before = RenderTexture.active;
+			Texture2D copy = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false);
+			try
+			{
+				Graphics.Blit(texture, rt);
+				RenderTexture.active = rt;
+				copy.ReadPixels(new Rect(0, 0, texture.width, texture.height), 0, 0);
+				copy.Apply(false, false);
+				return copy.GetPixels32();
+			}
+			finally
+			{
+				RenderTexture.active = before;
+				RenderTexture.ReleaseTemporary(rt);
+				Destroy(copy);
+			}
 		}
 
 		/// <summary>Onto the dash's pixel grid, so the parts line up with the pixels round them.</summary>

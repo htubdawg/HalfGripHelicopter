@@ -9,7 +9,8 @@ namespace HalfGripHelicopter
 	/// the levers' console running off the bottom, collective at the hover mark, throttle full). Exits 1 if the icon is blank.
 	///   dotnet run -c Release --project tools/preview -- out.png
 	/// (or -- --clear out.png: transparent, one pixel per dash pixel, for laying over a screenshot);
-	/// the instrument panel's face as first drawn: -- --panel panel.png;
+	/// the instrument panel's face as first drawn: -- --panel panel.png; as fitted in the owner's 0.1.7 log with the MiniMap's GPS on the
+	/// right (on its plate): -- --fitted fitted.png;
 	/// and the helicopter's shape from outside and from the seat (<see cref="Model"/>):
 	///   dotnet run -c Release --project tools/preview -- --model model.png
 	/// </summary>
@@ -28,6 +29,57 @@ namespace HalfGripHelicopter
 				Color32[] px = Shape.PanelPixels(Model.Car(false), out int w, out int h);
 				Png.Save(args.Length > 1 ? args[1] : "panel.png", px, w, h, 3);
 				Console.WriteLine("wrote panel " + w + "x" + h);
+				return 0;
+			}
+			if (args.Length > 0 && args[0] == "--fitted")
+			{
+				// The owner's 0.1.7 fit (258x159, seen from 0.57, stick and console zones) and a GPS where the owner's 0.2.0 screenshot has it.
+				var zones = new System.Collections.Generic.List<Panel.Zone>
+				{
+					new Panel.Zone(-0.10f, 0f, 0.17f, 1f, false),
+					new Panel.Zone(0.43f, 0f, 0.79f, 1f, true),
+					new Panel.Zone(0.815f, 0.64f, 0.995f, 0.98f, false, true),
+				};
+				Canvas face = Panel.Draw(258, 159, 0.57f, zones);
+				// The GPS's mounting plate over the face where the GPS stands, with a stand-in casing (grey box, dark screen) at the size the
+				// owner's screenshot shows it (about 34 x 30 dash pixels).
+				const int gw = 34, gh = 30;
+				// The casing's shape, its corners cut, as the plate's hole.
+				bool[] hole = new bool[gw * gh];
+				for (int y = 0; y < gh; y++)
+				{
+					for (int x = 0; x < gw; x++)
+					{
+						int dx = System.Math.Min(x, gw - 1 - x), dy = System.Math.Min(y, gh - 1 - y);
+						hole[y * gw + x] = dx + dy >= 2;
+					}
+				}
+				Canvas mount = Art.Mount(gw, gh, 5, 4, hole);
+				int mx = 217 - 6, my = 112 - 10;
+				for (int y = 0; y < mount.Height; y++)
+				{
+					for (int x = 0; x < mount.Width; x++)
+					{
+						Color32 p = mount.Get(x, y);
+						if (p.a > 0)
+						{
+							face.Set(mx + x, my + y, p);
+						}
+					}
+				}
+				for (int y = 0; y < gh; y++)
+				{
+					for (int x = 0; x < gw; x++)
+					{
+						if (hole[y * gw + x])
+						{
+							bool inner = x >= 3 && y >= 3 && x < gw - 3 && y < gh - 3;
+							face.Set(mx + 6 + x, my + 10 + y, inner ? new Color32(60, 120, 60, 255) : Art.Grey);
+						}
+					}
+				}
+				Png.Save(args.Length > 1 ? args[1] : "fitted.png", face.Pixels, 258, 159, 3);
+				Console.WriteLine("wrote fitted panel 258x159");
 				return 0;
 			}
 			if (args.Length > 0 && args[0] == "--close")

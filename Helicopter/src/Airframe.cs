@@ -387,6 +387,31 @@ namespace HalfGripHelicopter
 			return m;
 		}
 
+		private (Quaternion Head, Quaternion View)? fittedHead;
+
+		/// <summary>The head's camera's turn in the car and the dash camera's in the interior (keys 1/3 turn them).</summary>
+		private (Quaternion Head, Quaternion View) HeadTurn(Cockpit cockpit)
+		{
+			Quaternion head = headCamera != null ? Quaternion.Inverse(transform.rotation) * headCamera.transform.rotation : Quaternion.identity;
+			Transform root = cockpit != null ? cockpit.transform.parent : null;
+			Quaternion view = cockpit != null && cockpit.View != null ? (root != null ? Quaternion.Inverse(root.rotation) : Quaternion.identity) * cockpit.View.transform.rotation : Quaternion.identity;
+			return (head, view);
+		}
+
+		/// <summary>
+		/// True while the cameras look the way they did when the face was last fitted (or it never was): the fit works through both
+		/// cameras, so a refit with the head turned would put the clear parts in the wrong places.
+		/// </summary>
+		internal bool HeadAsFitted(Cockpit cockpit)
+		{
+			if (!fittedHead.HasValue)
+			{
+				return true;
+			}
+			(Quaternion head, Quaternion view) = HeadTurn(cockpit);
+			return Quaternion.Angle(head, fittedHead.Value.Head) < 1f && Quaternion.Angle(view, fittedHead.Value.View) < 1f;
+		}
+
 		/// <summary>
 		/// Redraws the instrument panel's face round the cockpit's controls, at the dash's pixel size. The controls are dash sprites drawn by
 		/// the dash's camera over the world; each of their <see cref="Cockpit.Areas"/> is taken to the screen by that camera, then back out
@@ -402,6 +427,7 @@ namespace HalfGripHelicopter
 				Mod.Info("Helicopter: panel left as guessed (" + (view == null ? "no dash camera" : headCamera == null ? "no head camera" : "no panel") + ").");
 				return;
 			}
+			fittedHead = HeadTurn(cockpit);
 			Shape.PanelFace(frame, out Vector3 bl, out Vector3 right, out Vector3 up);
 			Vector3 o = transform.TransformPoint(bl);
 			Vector3 ru = transform.TransformVector(right);
@@ -427,7 +453,16 @@ namespace HalfGripHelicopter
 			}
 
 			List<Panel.Zone> zones = new List<Panel.Zone>();
+			List<(Vector3 Min, Vector3 Max, bool Console, bool Mount)> areas = new List<(Vector3, Vector3, bool, bool)>();
 			foreach ((Vector3 min, Vector3 max, bool console) in cockpit.Areas)
+			{
+				areas.Add((min, max, console, false));
+			}
+			if (cockpit.Gps.HasValue)
+			{
+				areas.Add((cockpit.Gps.Value.Min, cockpit.Gps.Value.Max, false, true));
+			}
+			foreach ((Vector3 min, Vector3 max, bool console, bool mount) in areas)
 			{
 				float u0 = float.MaxValue, v0 = float.MaxValue, u1 = float.MinValue, v1 = float.MinValue;
 				bool any = false;
@@ -450,7 +485,7 @@ namespace HalfGripHelicopter
 				}
 				if (any && u1 > 0f && u0 < 1f && v1 > 0f && v0 < 1f)
 				{
-					zones.Add(new Panel.Zone(u0, v0, u1, v1, console));
+					zones.Add(new Panel.Zone(u0, v0, u1, v1, console, mount));
 				}
 			}
 			Vector2? bottom = OnFace(new Vector3(0.5f, 0f, 0f));
@@ -508,7 +543,7 @@ namespace HalfGripHelicopter
 			System.Text.StringBuilder z = new System.Text.StringBuilder();
 			foreach (Panel.Zone zone in zones)
 			{
-				z.Append(" [" + zone.U0.ToString("0.00") + "-" + zone.U1.ToString("0.00") + " x " + zone.V0.ToString("0.00") + "-" + zone.V1.ToString("0.00") + (zone.Console ? " console" : "") + "]");
+				z.Append(" [" + zone.U0.ToString("0.00") + "-" + zone.U1.ToString("0.00") + " x " + zone.V0.ToString("0.00") + "-" + zone.V1.ToString("0.00") + (zone.Console ? " console" : zone.Mount ? " GPS" : "") + "]");
 			}
 			Mod.Info("Helicopter: panel fitted, " + w + "x" + h + " pixels, seen from " + seen.ToString("0.00") + " up, gate leaning " + (sl.HasValue && sr.HasValue ? sl.Value.ToString("0.00") + " / " + sr.Value.ToString("0.00") : "as guessed") + ", clear" + z);
 		}

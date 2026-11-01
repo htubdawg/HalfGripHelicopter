@@ -285,6 +285,81 @@ namespace HalfGripHelicopter
 		/// <paramref name="slot0"/>, running <paramref name="travel"/> rows. Ticks at the quarters; the collective's (left) hover mark half
 		/// way in yellow, the throttle's full mark in red. The front edge's middle is the canvas's middle column.
 		/// </summary>
+		/// <summary>
+		/// The MiniMap GPS's mounting plate, for a casing <paramref name="w"/> by <paramref name="h"/> pixels: the gate's speckled grey
+		/// plate <paramref name="rim"/> pixels round it, a dark seat just round the casing (its shadow), a dark front face
+		/// <paramref name="face"/> rows high below with a lit front edge, and a screw at each corner. A 1-pixel outline all round; the
+		/// casing's bottom-left corner falls at (rim + 1, rim + face + 1).
+		/// </summary>
+		/// <summary>
+		/// The GPS's mounting plate round a w x h casing. <paramref name="hole"/> (w*h, rows from the bottom) marks the casing's own pixels:
+		/// they are left see-through, so the plate can never cover the GPS whatever order the game draws them in (0.2.2 and 0.2.3 drew the
+		/// plate over it). Null cuts out the whole w x h box. The seat's shadow follows the hole's edge.
+		/// </summary>
+		internal static Canvas Mount(int w, int h, int rim, int face, bool[] hole = null)
+		{
+			Canvas c = new Canvas(w + 2 * rim + 2, h + 2 * rim + face + 2);
+			int x0 = 1, x1 = c.Width - 1, y0 = 1, y1 = c.Height - 1;
+			c.Rect(x0, y0, x1 - x0, face, Dark);
+			c.Rect(x0, y0 + face, x1 - x0, y1 - y0 - face, Plate);
+			Speckle(c, Plate, PlateDot, 9);
+			c.Shade(Light, Black, Black);
+			c.Rect(x0 + 1, y0 + face, x1 - x0 - 2, 1, Light);
+			c.Rect(x0 + 1, y0 + face - 1, x1 - x0 - 2, 1, Black);
+			int cx = rim + 1, cy = rim + face + 1;
+			bool Hole(int x, int y)
+			{
+				int i = x - cx, j = y - cy;
+				return i >= 0 && j >= 0 && i < w && j < h && (hole == null || hole[j * w + i]);
+			}
+			// The casing's seat: a line round it, its shadow on the plate (black below and right, dark above and left).
+			Color32[] seat = new Color32[c.Pixels.Length];
+			bool[] mark = new bool[c.Pixels.Length];
+			for (int y = cy - 1; y <= cy + h; y++)
+			{
+				for (int x = cx - 1; x <= cx + w; x++)
+				{
+					if (Hole(x, y))
+					{
+						continue;
+					}
+					if (Hole(x, y + 1) || Hole(x - 1, y) || Hole(x - 1, y + 1))
+					{
+						seat[y * c.Width + x] = Black;
+						mark[y * c.Width + x] = true;
+					}
+					else if (Hole(x, y - 1) || Hole(x + 1, y) || Hole(x + 1, y - 1))
+					{
+						seat[y * c.Width + x] = Dark;
+						mark[y * c.Width + x] = true;
+					}
+				}
+			}
+			for (int y = cy; y < cy + h; y++)
+			{
+				for (int x = cx; x < cx + w; x++)
+				{
+					if (Hole(x, y))
+					{
+						c.Set(x, y, default);
+					}
+				}
+			}
+			for (int i = 0; i < mark.Length; i++)
+			{
+				if (mark[i])
+				{
+					c.Pixels[i] = seat[i];
+				}
+			}
+			foreach ((int x, int y) in new[] { (x0 + 2, y1 - 2), (x1 - 3, y1 - 2), (x0 + 2, y0 + face + 2), (x1 - 3, y0 + face + 2) })
+			{
+				c.Set(x, y, Light);
+				c.Set(x, y - 1, Black);
+			}
+			return c;
+		}
+
 		internal static Canvas Gate(int bottom, int h, int face, int gap, int slot0, int travel, float slopeLeft, float slopeRight)
 		{
 			int extra = Mathf.CeilToInt(Mathf.Max(Mathf.Abs(slopeLeft), Mathf.Abs(slopeRight)) * h) + 2;
