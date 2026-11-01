@@ -285,6 +285,36 @@ namespace HalfGripHelicopter
 		/// <paramref name="slot0"/>, running <paramref name="travel"/> rows. Ticks at the quarters; the collective's (left) hover mark half
 		/// way in yellow, the throttle's full mark in red. The front edge's middle is the canvas's middle column.
 		/// </summary>
+		/// <summary>
+		/// The MiniMap GPS's mounting plate, for a casing <paramref name="w"/> by <paramref name="h"/> pixels: the gate's speckled grey
+		/// plate <paramref name="rim"/> pixels round it, a dark seat just round the casing (its shadow), a dark front face
+		/// <paramref name="face"/> rows high below with a lit front edge, and a screw at each corner. A 1-pixel outline all round; the
+		/// casing's bottom-left corner falls at (rim + 1, rim + face + 1).
+		/// </summary>
+		internal static Canvas Mount(int w, int h, int rim, int face)
+		{
+			Canvas c = new Canvas(w + 2 * rim + 2, h + 2 * rim + face + 2);
+			int x0 = 1, x1 = c.Width - 1, y0 = 1, y1 = c.Height - 1;
+			c.Rect(x0, y0, x1 - x0, face, Dark);
+			c.Rect(x0, y0 + face, x1 - x0, y1 - y0 - face, Plate);
+			Speckle(c, Plate, PlateDot, 9);
+			c.Shade(Light, Black, Black);
+			c.Rect(x0 + 1, y0 + face, x1 - x0 - 2, 1, Light);
+			c.Rect(x0 + 1, y0 + face - 1, x1 - x0 - 2, 1, Black);
+			// The casing's seat: a dark line round it, its shadow on the plate.
+			int cx = rim + 1, cy = rim + face + 1;
+			c.Rect(cx - 1, cy - 1, w + 2, 1, Black);
+			c.Rect(cx + w, cy - 1, 1, h + 1, Black);
+			c.Rect(cx - 1, cy, 1, h, Dark);
+			c.Rect(cx - 1, cy + h, w + 1, 1, Dark);
+			foreach ((int x, int y) in new[] { (x0 + 2, y1 - 2), (x1 - 3, y1 - 2), (x0 + 2, y0 + face + 2), (x1 - 3, y0 + face + 2) })
+			{
+				c.Set(x, y, Light);
+				c.Set(x, y - 1, Black);
+			}
+			return c;
+		}
+
 		internal static Canvas Gate(int bottom, int h, int face, int gap, int slot0, int travel, float slopeLeft, float slopeRight)
 		{
 			int extra = Mathf.CeilToInt(Mathf.Max(Mathf.Abs(slopeLeft), Mathf.Abs(slopeRight)) * h) + 2;

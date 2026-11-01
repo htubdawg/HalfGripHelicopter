@@ -1,6 +1,6 @@
 # HalfGripHelicopter
 
-**Version 0.2.1** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
+**Version 0.2.2** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
 
 A chassis item, **Helicopter**, that turns your car into a helicopter. Made for the
 [Open World](https://github.com/htubdawg/HalfGripOpenWorld) mod, but it works in any race.
@@ -29,7 +29,7 @@ A short showcase of the Helicopter in game. *(Click the picture to watch it on Y
   a fin and tail rotor, skids, and a main rotor that spins with the throttle. From the seat you look out through the
   tinted bubble windscreen and door windows from a cabin with a roof, walls, a floor, two seats and an instrument panel
   (gauges, radio, warning lights, switches) laid out round the stick and the levers, with a centre console under the levers
-  and, with the MiniMap's GPS fitted, a bay the GPS sits in.
+  and, with the MiniMap's GPS fitted, a grey mounting plate the GPS sits on.
 
   ![The helicopter from outside and from the seat](docs/model.png)
 - **No keys.** W and S do nothing. Everything is done with the hand.

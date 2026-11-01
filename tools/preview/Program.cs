@@ -10,7 +10,7 @@ namespace HalfGripHelicopter
 	///   dotnet run -c Release --project tools/preview -- out.png
 	/// (or -- --clear out.png: transparent, one pixel per dash pixel, for laying over a screenshot);
 	/// the instrument panel's face as first drawn: -- --panel panel.png; as fitted in the owner's 0.1.7 log with the MiniMap's GPS on the
-	/// right (its bay): -- --fitted fitted.png;
+	/// right (on its plate): -- --fitted fitted.png;
 	/// and the helicopter's shape from outside and from the seat (<see cref="Model"/>):
 	///   dotnet run -c Release --project tools/preview -- --model model.png
 	/// </summary>
@@ -38,9 +38,27 @@ namespace HalfGripHelicopter
 				{
 					new Panel.Zone(-0.10f, 0f, 0.17f, 1f, false),
 					new Panel.Zone(0.43f, 0f, 0.79f, 1f, true),
-					new Panel.Zone(0.84f, 0.70f, 0.97f, 0.95f, false, true),
+					new Panel.Zone(0.815f, 0.64f, 0.995f, 0.98f, false, true),
 				};
 				Canvas face = Panel.Draw(258, 159, 0.57f, zones);
+				// The GPS's mounting plate over the face where the GPS stands, with a stand-in casing (grey box, dark screen) at the size the
+				// owner's screenshot shows it (about 34 x 30 dash pixels).
+				const int gw = 34, gh = 30;
+				Canvas mount = Art.Mount(gw, gh, 5, 4);
+				int mx = 217 - 6, my = 112 - 10;
+				for (int y = 0; y < mount.Height; y++)
+				{
+					for (int x = 0; x < mount.Width; x++)
+					{
+						Color32 p = mount.Get(x, y);
+						if (p.a > 0)
+						{
+							face.Set(mx + x, my + y, p);
+						}
+					}
+				}
+				face.Rect(mx + 6, my + 10, gw, gh, Art.Grey);
+				face.Rect(mx + 9, my + 13, gw - 6, gh - 6, new Color32(60, 120, 60, 255));
 				Png.Save(args.Length > 1 ? args[1] : "fitted.png", face.Pixels, 258, 159, 3);
 				Console.WriteLine("wrote fitted panel 258x159");
 				return 0;

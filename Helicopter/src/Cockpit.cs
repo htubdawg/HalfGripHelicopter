@@ -50,10 +50,18 @@ namespace HalfGripHelicopter
 		internal readonly List<(Vector3 Min, Vector3 Max, bool Console)> Areas = new List<(Vector3, Vector3, bool)>();
 
 		/// <summary>
-		/// The MiniMap's GPS on the dash (a box in the interior's space, at its depth), or null when none is fitted. The panel's face gets a
-		/// recessed bay behind it, so it looks set into the panel and not stuck over its gauges. Kept up to date by <see cref="FindGps"/>.
+		/// The MiniMap's GPS with the plate it is mounted on (a box in the interior's space, at the plate's depth), or null when none is
+		/// fitted. The panel's face is kept plain behind it, so no drawn gauge peeks out round it. Kept up to date by <see cref="FindGps"/>.
 		/// </summary>
 		internal (Vector3 Min, Vector3 Max)? Gps { get; private set; }
+
+		/// <summary>How far the GPS's mounting plate reaches past its casing on each side, and below it (its front face), in dash pixels.</summary>
+		private const int MountRim = 5;
+		private const int MountFace = 4;
+		/// <summary>How far behind the GPS's casing the plate stands (toward the camera is -z), like the gate behind the levers.</summary>
+		private const float MountBack = 0.03f;
+
+		private GameObject mount;
 
 		/// <summary>A point in the interior's space as a point in the world.</summary>
 		internal Vector3 World(Vector3 local) => transform.parent != null ? transform.parent.TransformPoint(local) : local;
@@ -426,16 +434,51 @@ namespace HalfGripHelicopter
 			(Vector3 Min, Vector3 Max)? now = null;
 			if (gpsScreen != null && gpsScreen.isActiveAndEnabled && TryLocalBounds(gpsScreen.transform, root, out Bounds b))
 			{
-				now = (new Vector3(b.min.x, b.min.y, b.center.z), new Vector3(b.max.x, b.max.y, b.center.z));
+				now = (new Vector3(b.min.x, b.min.y, b.min.z), new Vector3(b.max.x, b.max.y, b.min.z));
 			}
-			bool same = now.HasValue == Gps.HasValue && (!now.HasValue || ((now.Value.Min - Gps.Value.Min).sqrMagnitude < texel * texel * 0.25f && (now.Value.Max - Gps.Value.Max).sqrMagnitude < texel * texel * 0.25f));
+			bool same = now.HasValue == gpsBox.HasValue && (!now.HasValue || ((now.Value.Min - gpsBox.Value.Min).sqrMagnitude < texel * texel * 0.25f && (now.Value.Max - gpsBox.Value.Max).sqrMagnitude < texel * texel * 0.25f));
 			if (same)
 			{
 				return false;
 			}
-			Gps = now;
-			Mod.Info("Helicopter: " + (now.HasValue ? "the GPS is on the dash at " + now.Value.Min + " to " + now.Value.Max : "no GPS on the dash") + ".");
+			gpsBox = now;
+			BuildMount();
+			Mod.Info("Helicopter: " + (now.HasValue ? "the GPS is on the dash at " + now.Value.Min + " to " + now.Value.Max + ", on a plate" : "no GPS on the dash") + ".");
 			return true;
+		}
+
+		/// <summary>The GPS's own sprites' box (casing and screen), as last measured.</summary>
+		private (Vector3 Min, Vector3 Max)? gpsBox;
+
+		/// <summary>
+		/// The GPS's mounting plate: a speckled grey plate in the dash's style (like the levers' gate) a few pixels round the casing, with a
+		/// dark front face below and screws, drawn as a dash sprite just behind the GPS, so it lines up with it pixel for pixel and the GPS
+		/// looks fitted to the helicopter rather than stuck over the panel. Built again when the GPS moves, taken off when it goes.
+		/// </summary>
+		private void BuildMount()
+		{
+			if (mount != null)
+			{
+				Destroy(mount);
+				mount = null;
+			}
+			Gps = null;
+			if (!gpsBox.HasValue)
+			{
+				return;
+			}
+			Vector3 min = gpsBox.Value.Min, max = gpsBox.Value.Max;
+			int w = Mathf.Max(4, Mathf.RoundToInt((max.x - min.x) / texel));
+			int h = Mathf.Max(4, Mathf.RoundToInt((max.y - min.y) / texel));
+			Canvas art = Art.Mount(w, h, MountRim, MountFace);
+			mount = new GameObject("GpsMount");
+			mount.layer = layer;
+			mount.transform.SetParent(transform, false);
+			// The art's bottom-left corner (its 1-pixel outline) at the casing's corner less the rim and the front face.
+			Vector3 corner = new Vector3(min.x - (MountRim + 1) * texel, min.y - (MountRim + MountFace + 1) * texel, min.z + MountBack);
+			mount.transform.localPosition = corner;
+			Part("Sprite", art, Vector2.zero, mount.transform, Vector3.zero, 0);
+			Gps = (new Vector3(corner.x, corner.y, corner.z), new Vector3(corner.x + art.Width * texel, corner.y + art.Height * texel, corner.z));
 		}
 
 		/// <summary>Onto the dash's pixel grid, so the parts line up with the pixels round them.</summary>
