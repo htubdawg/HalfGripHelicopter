@@ -9,6 +9,7 @@ namespace HalfGripHelicopter
 	/// the levers' console running off the bottom, collective at the hover mark, throttle full). Exits 1 if the icon is blank.
 	///   dotnet run -c Release --project tools/preview -- out.png
 	/// (or -- --clear out.png: transparent, one pixel per dash pixel, for laying over a screenshot);
+	/// the instrument panel's face as first drawn: -- --panel panel.png;
 	/// and the helicopter's shape from outside and from the seat (<see cref="Model"/>):
 	///   dotnet run -c Release --project tools/preview -- --model model.png
 	/// </summary>
@@ -19,6 +20,14 @@ namespace HalfGripHelicopter
 			if (args.Length > 0 && args[0] == "--model")
 			{
 				Model.Sheet(args.Length > 1 ? args[1] : "model.png");
+				return 0;
+			}
+			if (args.Length > 0 && args[0] == "--panel")
+			{
+				// The panel's face as first drawn (the guessed layout), at the game's car's size, 3 screen pixels per pixel.
+				Color32[] px = Shape.PanelPixels(Model.Car(false), out int w, out int h);
+				Png.Save(args.Length > 1 ? args[1] : "panel.png", px, w, h, 3);
+				Console.WriteLine("wrote panel " + w + "x" + h);
 				return 0;
 			}
 			if (args.Length > 0 && args[0] == "--close")

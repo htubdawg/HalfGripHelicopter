@@ -69,6 +69,14 @@ namespace HalfGripHelicopter
 				flight = link.cc.gameObject.AddComponent<Flight>();
 				flight.Init(link, body.size.z * Mathf.Abs(link.cc.transform.lossyScale.z));
 				airframe = Airframe.Build(link.cc, flight, body);
+				try
+				{
+					airframe.FitPanel(cockpit);
+				}
+				catch (Exception e)
+				{
+					Mod.Log.LogWarning("Helicopter: the instrument panel could not be fitted round the controls (left as guessed): " + e.Message);
+				}
 				Active = true;
 				Mod.Info("Helicopter: on the car (body " + body.size + ", mass " + (link.cc.rb != null ? link.cc.rb.mass : 0f) + ", gravity " + Physics.gravity.y + ").");
 			}

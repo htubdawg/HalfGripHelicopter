@@ -115,7 +115,7 @@ namespace HalfGripHelicopter
 					t = new Tex { Px = Shape.Speckle(out w), W = w, H = w };
 					break;
 				case Paint.Panel:
-					t = new Tex { Px = Shape.PanelPixels(out w, out h), W = w, H = h, Clamp = true };
+					t = new Tex { Px = Shape.PanelPixels(Car(false), out w, out h), W = w, H = h, Clamp = true };
 					break;
 				case Paint.Pane:
 					t = new Tex { Px = Shape.GlassPixels(out w), W = w, H = w };

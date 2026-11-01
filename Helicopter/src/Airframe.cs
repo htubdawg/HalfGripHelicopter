@@ -38,6 +38,9 @@ namespace HalfGripHelicopter
 		private Shader lit;
 		private int partLayer;
 		private bool headFound;
+		private Camera headCamera;
+		private Shape.Frame frame;
+		private Texture2D panelTexture;
 		private bool hooked;
 		private readonly List<Renderer> hidden = new List<Renderer>();
 		private readonly List<Object> owned = new List<Object>();
@@ -184,6 +187,7 @@ namespace HalfGripHelicopter
 
 			Vector3 head = Head(b);
 			Shape.Frame f = Shape.Measure(b.size.z, b.size.x, b.center.x, b.center.z, ground, head);
+			frame = f;
 			foreach (Piece piece in Shape.Build(f))
 			{
 				Transform t = MeshPart(piece);
@@ -221,6 +225,7 @@ namespace HalfGripHelicopter
 					if (near.Contains(p))
 					{
 						headFound = true;
+						headCamera = c;
 						return p;
 					}
 				}
@@ -331,8 +336,9 @@ namespace HalfGripHelicopter
 				}
 				else if (paint == Paint.Panel)
 				{
-					tex = Texture("HelicopterPanel", Shape.PanelPixels(out int w, out int h), w, h);
+					tex = Texture("HelicopterPanel", Shape.PanelPixels(frame, out int w, out int h), w, h);
 					tex.wrapMode = TextureWrapMode.Clamp;
+					panelTexture = tex;
 				}
 				if (tex != null && m.HasProperty("_BaseMap"))
 				{
@@ -379,6 +385,104 @@ namespace HalfGripHelicopter
 			Material m = new Material(shader);
 			m.mainTexture = Texture("HelicopterGlass", Shape.GlassPixels(out int n), n, n);
 			return m;
+		}
+
+		/// <summary>
+		/// Redraws the instrument panel's face round the cockpit's controls, at the dash's pixel size. The controls are dash sprites drawn by
+		/// the dash's camera over the world; each of their <see cref="Cockpit.Areas"/> is taken to the screen by that camera, then back out
+		/// through the head's camera (the cockpit view's world camera) onto the face's plane. The face is kept clear there (a console under
+		/// the levers), and its size in texture pixels is its width on the screen over a dash pixel's. The part below the screen's bottom
+		/// edge gets nothing. Logs what it found; on any failure the face keeps the guessed layout.
+		/// </summary>
+		internal void FitPanel(Cockpit cockpit)
+		{
+			Camera view = cockpit != null ? cockpit.View : null;
+			if (view == null || headCamera == null || panelTexture == null)
+			{
+				Mod.Info("Helicopter: panel left as guessed (" + (view == null ? "no dash camera" : headCamera == null ? "no head camera" : "no panel") + ").");
+				return;
+			}
+			Shape.PanelFace(frame, out Vector3 bl, out Vector3 right, out Vector3 up);
+			Vector3 o = transform.TransformPoint(bl);
+			Vector3 ru = transform.TransformVector(right);
+			Vector3 vu = transform.TransformVector(up);
+			Vector3 normal = Vector3.Cross(ru, vu);
+
+			// Viewport point -> (u, v) on the face, or null if the head's ray misses its plane.
+			Vector2? OnFace(Vector3 vp)
+			{
+				Ray ray = headCamera.ViewportPointToRay(new Vector3(vp.x, vp.y, 0f));
+				float den = Vector3.Dot(ray.direction, normal);
+				if (Mathf.Abs(den) < 1e-6f)
+				{
+					return null;
+				}
+				float t = Vector3.Dot(o - ray.origin, normal) / den;
+				if (t <= 0f)
+				{
+					return null;
+				}
+				Vector3 q = ray.origin + ray.direction * t - o;
+				return new Vector2(Vector3.Dot(q, ru) / ru.sqrMagnitude, Vector3.Dot(q, vu) / vu.sqrMagnitude);
+			}
+
+			List<Panel.Zone> zones = new List<Panel.Zone>();
+			foreach ((Vector3 min, Vector3 max, bool console) in cockpit.Areas)
+			{
+				float u0 = float.MaxValue, v0 = float.MaxValue, u1 = float.MinValue, v1 = float.MinValue;
+				bool any = false;
+				for (int i = 0; i < 4; i++)
+				{
+					Vector3 corner = new Vector3((i & 1) == 0 ? min.x : max.x, (i & 2) == 0 ? min.y : max.y, min.z);
+					Vector3 vp = view.WorldToViewportPoint(cockpit.World(corner));
+					// Below the screen counts as at its edge: the face isn't seen there anyway.
+					vp.y = Mathf.Max(vp.y, -0.05f);
+					Vector2? uv = OnFace(vp);
+					if (!uv.HasValue)
+					{
+						continue;
+					}
+					any = true;
+					u0 = Mathf.Min(u0, uv.Value.x);
+					v0 = Mathf.Min(v0, uv.Value.y);
+					u1 = Mathf.Max(u1, uv.Value.x);
+					v1 = Mathf.Max(v1, uv.Value.y);
+				}
+				if (any && u1 > 0f && u0 < 1f && v1 > 0f && v0 < 1f)
+				{
+					zones.Add(new Panel.Zone(u0, v0, u1, v1, console));
+				}
+			}
+			Vector2? bottom = OnFace(new Vector3(0.5f, 0f, 0f));
+			float seen = bottom.HasValue ? Mathf.Clamp01(bottom.Value.y) : 0.45f;
+
+			// A dash pixel's height on the screen (viewport units), and the face's top edge's width in the same units.
+			Vector3 grip = cockpit.Areas.Count > 0 ? cockpit.Areas[0].Min : Vector3.zero;
+			float pixel = Mathf.Abs(view.WorldToViewportPoint(cockpit.World(grip + Vector3.up * cockpit.Texel)).y - view.WorldToViewportPoint(cockpit.World(grip)).y);
+			Vector3 a = headCamera.WorldToViewportPoint(o + vu);
+			Vector3 b = headCamera.WorldToViewportPoint(o + vu + ru);
+			int across = 300;
+			if (pixel > 1e-5f && a.z > 0f && b.z > 0f)
+			{
+				across = Mathf.RoundToInt(Mathf.Abs(b.x - a.x) * headCamera.aspect / pixel);
+			}
+			Shape.PanelSize(frame, across, out int w, out int h);
+			Canvas art = Panel.Draw(w, h, seen, zones);
+			Texture2D fresh = Texture("HelicopterPanel", art.Pixels, w, h);
+			fresh.wrapMode = TextureWrapMode.Clamp;
+			if (materials.TryGetValue(Paint.Panel, out Material m) && m != null && m.HasProperty("_BaseMap"))
+			{
+				m.SetTexture("_BaseMap", fresh);
+			}
+			owned.Remove(panelTexture);
+			Destroy(panelTexture);
+			panelTexture = fresh;
+			System.Text.StringBuilder z = new System.Text.StringBuilder();
+			foreach (Panel.Zone zone in zones)
+			{
+				z.Append(" [" + zone.U0.ToString("0.00") + "-" + zone.U1.ToString("0.00") + " x " + zone.V0.ToString("0.00") + "-" + zone.V1.ToString("0.00") + (zone.Console ? " console" : "") + "]");
+			}
+			Mod.Info("Helicopter: panel fitted, " + w + "x" + h + " pixels, seen from " + seen.ToString("0.00") + " up, clear" + z);
 		}
 
 		/// <summary>A point-filtered, repeating texture from plain pixels (rows from the bottom).</summary>

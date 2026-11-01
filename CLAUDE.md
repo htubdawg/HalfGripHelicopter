@@ -34,9 +34,10 @@ changes the state of things, this file must already say everything needed to car
 | `HeliDriver.cs` | Every 0.25 s: the player's `CarLink` + item fitted → builds cockpit, flight, rotor; takes them off when not; `DriveCar` in place of the car's driving (brakes when parked, `engineIndicator` = rotor speed) |
 | `Cockpit.cs` | Hides wheel, all shifters, handbrake (renderers + `InteriorCollider`s off, objects alive, re-hidden every 0.5 s; the wheel's lock-button sprites every frame, since `NSteeringWheel.Update` turns one back on); stick = `DoubleLinearObject` (spring off while held, on when let go, right click toggles `frozen`), levers = `LinearObject` with no spring; placed and sized from the hidden parts' bounds and the dash's pixel size; shaft redrawn in whole pixels |
 | `Flight.cs` | The flight model (see its summary): thrust `m g 2 C rpm²`, climb-rate damping `g/ClimbRate`, attitude hold (5 rad/s, critically damped), yaw from the stick + tail fin, drag balanced at `TopSpeed` |
-| `Shape.cs` | The helicopter's geometry as plain triangles per `Paint` (Unity's managed structs only, so `tools/preview` draws it too): `Measure` sizes the pod from the car (length >= 0.62 car lengths, height 0.4-0.5 of the length, head 57% up and 40% back), `Build` gives the outer skin + outside parts, the cabin (inner skin facing in with holes at the glass, glareshield shelf, panel pedestal with a drawn face, floor, seats), the panes (glass seen from inside), the main and tail rotors. Windows are cut at level heights; every edge level owns a mesh column on every ring (`Angles`), so edges are clean. Pixel arrays for the speckle, glass and panel textures. No `Quaternion.Euler` (native; use `AboutX`/`AboutY`) |
-| `Airframe.cs` | Hides the car's skin models (`CarSkinController.carModels`) and wheel meshes (re-hidden every 0.5 s, shown again on removal); turns `Shape`'s pieces into meshes on the body's layer, one URP Lit material per paint, `_Cull` Back, speckle and panel textures; the panes in the game's `Sprite-Unlit-Default` (alpha blended, always in the build, both sides; hidden from outside by the opaque outer glass); the head is the car's child camera tagged MainCamera; the cabin and panes are always drawn except for the camera named `RearViewCamera` (`beginCameraRendering`); rotors spin with `Flight.Rpm` |
-| `Art.cs` | `Canvas` (pixel drawing) and the pictures: icon, grip, boot, slot, handles |
+| `Shape.cs` | The helicopter's geometry as plain triangles per `Paint` (Unity's managed structs only, so `tools/preview` draws it too): `Measure` sizes the pod from the car (length >= 0.62 car lengths, height 0.4-0.5 of the length, head 57% up and 40% back), `Build` gives the outer skin + outside parts, the cabin (inner skin facing in with holes at the glass, glareshield shelf, panel pedestal with a drawn face, floor, seats), the panes (glass seen from inside), the main and tail rotors. Windows are cut at level heights; every edge level owns a mesh column on every ring (`Angles`), so edges are clean. Pixel arrays for the speckle and glass textures; `PanelFace` (the face's corner and edge vectors), `PanelSize`, `PanelPixels` (the guessed face). No `Quaternion.Euler` (native; use `AboutX`/`AboutY`) |
+| `Airframe.cs` | Hides the car's skin models (`CarSkinController.carModels`) and wheel meshes (re-hidden every 0.5 s, shown again on removal); turns `Shape`'s pieces into meshes on the body's layer, one URP Lit material per paint, `_Cull` Back, speckle and panel textures; the panes in the game's `Sprite-Unlit-Default` (alpha blended, always in the build, both sides; hidden from outside by the opaque outer glass); the head is the car's child camera tagged MainCamera; the cabin and panes are always drawn except for the camera named `RearViewCamera` (`beginCameraRendering`); rotors spin with `Flight.Rpm`; `FitPanel` redraws the panel's face round the cockpit's controls (below) |
+| `Art.cs` | `Canvas` (pixel drawing) and the pictures: icon, stick grip and shaft, boot, the levers' gate plate (`Gate`) and levers, `Speckle` |
+| `Panel.cs` | The instrument panel's face (managed only): `Draw(w, h, seenFrom, zones)` in the dash's style, kept clear where the controls fall (`Zone`s; a grey console under the levers' gate), gauges and strips centred in the free stretches of the part seen above the screen's edge; `GuessZones` from the owner's 0.1.6 screenshot |
 
 ## Rules that matter
 
@@ -91,7 +92,7 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
   tools/check.sh <halfgriprefs>/game <HalfGripTools>/dist/BepInEx/plugins/HalfGripTools/HalfGripTools.dll
   ```
 - Pictures: `dotnet run -c Release --project tools/preview -p:Refs=<halfgriprefs> -- docs/preview.png` (exits 1 on a blank icon).
-  `-- --clear <png>` draws the same sheet transparent at one pixel per dash pixel, to lay over an owner's screenshot.
+  `-- --panel <png>` draws the panel's face as first guessed. `-- --clear <png>` draws the same sheet transparent at one pixel per dash pixel, to lay over an owner's screenshot.
   Look at it after any art change.
 - Model: `dotnet run -c Release --project tools/preview -p:Refs=<halfgriprefs> -- --model docs/model.png` draws `Shape` with back-face
   culling and depth, from outside and from the head (ahead, left, right, the mirror back), for the game's car and a smaller one.
@@ -103,8 +104,9 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 ## Status (keep current)
 
-**Now:** 0.1.6 pushed to `claude/practical-thompson-8lxknd` (no PR yet: the owner hasn't asked for one). Waiting on the owner's
-in-game test of 0.1.6. **Next step:** read their screenshots and the `cockpit built` / `airframe built` log lines; check the stick's
+**Now:** 0.1.7 pushed to `claude/practical-thompson-8lxknd` (no PR yet: the owner hasn't asked for one). Waiting on the owner's
+in-game test of 0.1.7. **Next step:** read their screenshots and the `cockpit built` / `airframe built` / `panel fitted` log lines (the
+clear zones must sit behind the stick and the levers; if not, the projection in `Airframe.FitPanel` is wrong); check the stick's
 size and the gate plate against the cockpit (lay `tools/preview -- --clear` over their screenshot at ~3.5 screen px per dash px
 at 1080p); put the real body bounds, ground and head into `Model.Car` in
 `tools/preview/Model.cs`, re-render, and fix what they report.
@@ -157,7 +159,16 @@ History:
   ticks, yellow hover mark, red full mark), front edge 4 pixels below the screen's edge, as `Art.Lever` (collar in the slot,
   24-pixel shaft, knob: collective black head with a yellow/black band, throttle a red twist grip). Checked with `tools/preview`
   and laid over the owner's screenshot (sizes fit the panel), compiles; **not tested in game.**
-- **Waiting on the owner:** in-game test of 0.1.6 (stick size, levers' look, the `||` gone, the board still there; the stick and
+- **0.1.6 feedback** (owner): it won't look good against the textured instrument panel: the stick stands on a gauge, and the
+  panel's pixels were ~5x the dash's (64x24 over the whole face).
+- **0.1.7** on `claude/practical-thompson-8lxknd`: `Panel.cs` draws the face at one texture pixel per dash pixel in the dash's style;
+  `Cockpit.Areas` (boxes the grip's swing, the shaft and the levers+gate cover, in the interior's space) are taken to the screen by
+  the dash camera and back out through the head camera (`MainCamera` under the car) onto the face's plane (`Airframe.FitPanel`,
+  called by `HeliDriver` after both are built); the face is plain there (grey console under the gate), gauges/strips centred in the
+  free stretches above the screen's bottom edge; logs `panel fitted, WxH, seen from v, clear [u0-u1 x v0-v1]...`. Falls back to
+  `Panel.GuessZones`. Checked with `tools/preview -- --panel` and `--close`, compiles; **not tested in game.** Assumes the head
+  camera looks ahead at the build (a head turned then would misplace the zones; it is not redone).
+- **Waiting on the owner:** in-game test of 0.1.7 (the panel round the controls); and of 0.1.6 (stick size, levers' look, the `||` gone, the board still there; the stick and
   levers still grab and work); still open from 0.1.4: the nose from outside, and the log line `airframe built on body ... head ... pod ...` (the real car measures for
   `Model.Car`). Earlier checks still open: controls placement and grab, lift-off at about half collective, hover, landing, the
   garage on dropping the collective, other items refused. Unknown: whether the interior camera moves (head look) enough to show the

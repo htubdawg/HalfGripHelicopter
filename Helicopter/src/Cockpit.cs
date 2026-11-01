@@ -36,6 +36,22 @@ namespace HalfGripHelicopter
 		/// <summary>The stick's deflection, -1..1 each way: x to the right, y forward (up on the dash).</summary>
 		internal Vector2 Stick => Cyclic != null ? new Vector2(Cyclic.value.x * 2f - 1f, Cyclic.value.y * 2f - 1f) : Vector2.zero;
 
+		/// <summary>The camera that draws the dash, or null.</summary>
+		internal Camera View { get; private set; }
+
+		/// <summary>The dash's pixel size, in the interior's space.</summary>
+		internal float Texel => texel;
+
+		/// <summary>
+		/// The parts of the screen the controls can cover, as boxes (min, max corners) in the interior's space: the stick's grip over its
+		/// whole swing, the shaft below it, and the levers with their gate (Console). <see cref="Airframe.FitPanel"/> keeps the instrument
+		/// panel's face clear behind them.
+		/// </summary>
+		internal readonly List<(Vector3 Min, Vector3 Max, bool Console)> Areas = new List<(Vector3, Vector3, bool)>();
+
+		/// <summary>A point in the interior's space as a point in the world.</summary>
+		internal Vector3 World(Vector3 local) => transform.parent != null ? transform.parent.TransformPoint(local) : local;
+
 		internal float CollectiveValue => Collective != null ? Mathf.Clamp01(Collective.value) : 0f;
 		internal float ThrottleValue => Throttle != null ? Mathf.Clamp01(Throttle.value) : 0f;
 
@@ -136,6 +152,7 @@ namespace HalfGripHelicopter
 			FindDashParts(root);
 			Hide();
 			Camera view = ViewCamera(root);
+			View = view;
 
 			// The stick: in line with the wheel's middle, its grip at rest just above the dials' bottom edge (the wheel's own middle is near
 			// the screen's bottom edge, where the grip would be cut off), standing up from the floor: its foot just below the screen's
@@ -148,6 +165,10 @@ namespace HalfGripHelicopter
 			}
 			Vector3 foot = grip - new Vector3(0f, stickLength * texel, 0f);
 			BuildStick(foot, grip);
+			float gx = (Gate + 15) * texel;
+			Areas.Add((new Vector3(grip.x - gx, grip.y - (Gate + 2) * texel, grip.z), new Vector3(grip.x + gx, grip.y + (40 + Gate + 2) * texel, grip.z), false));
+			float sx = (0.6f * Gate + ShaftThick) * texel;
+			Areas.Add((new Vector3(grip.x - sx, foot.y, grip.z), new Vector3(grip.x + sx, grip.y, grip.z), false));
 
 			// The levers where the shifter was, in their gate plate at the screen's bottom edge: the collective on the left, the throttle on
 			// the right.
@@ -158,6 +179,8 @@ namespace HalfGripHelicopter
 			Vector3 slot = plate + new Vector3(0f, (Slot0 - 1) * texel, 0f);
 			Collective = BuildLever("Collective", slot + new Vector3(-LeverGap * texel, 0f, 0f), true);
 			Throttle = BuildLever("Throttle", slot + new Vector3(LeverGap * texel, 0f, 0f), false);
+			float lx = Mathf.Max(PlateBottom * 0.5f, LeverGap + 12f) * texel;
+			Areas.Add((new Vector3(plate.x - lx, plate.y, plate.z), new Vector3(plate.x + lx, slot.y + (Travel + Art.LeverShaft + 20) * texel, plate.z), true));
 			Collective.onReleased.AddListener(() =>
 			{
 				if (Collective.value <= 0.05f)

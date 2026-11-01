@@ -467,22 +467,14 @@ namespace HalfGripHelicopter
 			}
 
 			// The instrument panel on a pedestal in the middle, standing on the shelf's back part and leaning away from the seats, its
-			// face drawn (gauges, radio, lights, switches). It is narrower than the cabin, so the bubble nose shows each side of it.
-			float panelHalf = 0.5f * hw;
-			float zb = f.NoseZ - shelfEnd * f.PodLength;
-			float zt = zb + 0.06f * f.PodLength;
-			float yb = shelfY;
-			float yt = f.CentreY - 0.12f * hh;
-			Vector3 lean = new Vector3(0f, yt - yb, zt - zb);
-			Vector3 toSeat = new Vector3(0f, zt - zb, -(yt - yb)).normalized;
+			// face drawn (Panel: gauges, radio, lights, switches, fitted round the cockpit's controls). It is narrower than the cabin, so
+			// the bubble nose shows each side of it.
+			PanelGeometry(f, out float panelHalf, out float zb, out float zt, out float yt, out Vector3 lean, out Vector3 toSeat, out Vector3 faceMid);
 			float thick = 0.05f * f.PodLength;
-			Vector3 faceMid = new Vector3(f.PodX, 0.5f * (yb + yt), 0.5f * (zb + zt));
-			float tilt = Mathf.Atan2(zt - zb, yt - yb) * Mathf.Rad2Deg;
+			float tilt = Mathf.Atan2(zt - zb, yt - shelfY) * Mathf.Rad2Deg;
 			Box(p, Paint.Metal, faceMid - toSeat * (0.5f * thick), new Vector3(2f * panelHalf, lean.magnitude, thick), AboutX(tilt));
-			Vector3 lift = toSeat * 0.004f * f.PodLength;
-			Vector3 side = Vector3.right * (0.94f * panelHalf);
-			Vector3 up = lean * 0.47f;
-			Quad(p, Paint.Panel, faceMid - side - up + lift, faceMid + side - up + lift, faceMid - side + up + lift, faceMid + side + up + lift, toSeat);
+			PanelFace(f, out Vector3 bl, out Vector3 right, out Vector3 upward);
+			Quad(p, Paint.Panel, bl, bl + right, bl + upward, bl + right + upward, toSeat);
 			// A hood over its top edge, against the glare.
 			Box(p, Paint.Metal, new Vector3(f.PodX, yt + 0.015f * hh, zt - 0.012f * f.PodLength), new Vector3(2.04f * panelHalf, 0.025f * hh, 0.04f * f.PodLength), Quaternion.identity);
 			float lowZ = zb;
@@ -574,91 +566,49 @@ namespace HalfGripHelicopter
 			return px;
 		}
 
-		/// <summary>The instrument panel's face: four round gauges, a radio, warning lights and a row of switches on dark grey.</summary>
-		internal static Color32[] PanelPixels(out int w, out int h)
+		private static void PanelGeometry(Frame f, out float panelHalf, out float zb, out float zt, out float yt, out Vector3 lean, out Vector3 toSeat, out Vector3 faceMid)
 		{
-			w = 64;
-			h = 24;
-			Color32[] px = new Color32[w * h];
-			Color32 face = new Color32(54, 56, 58, 255);
-			Color32 edge = new Color32(84, 86, 88, 255);
-			Color32 black = new Color32(16, 16, 18, 255);
-			Color32 rim = new Color32(150, 152, 154, 255);
-			Color32 white = new Color32(230, 230, 222, 255);
-			for (int i = 0; i < px.Length; i++)
-			{
-				px[i] = face;
-			}
-			int W = w, H = h;
-			void Set(int x, int y, Color32 c)
-			{
-				if (x >= 0 && y >= 0 && x < W && y < H)
-				{
-					px[y * W + x] = c;
-				}
-			}
-			for (int x = 0; x < w; x++)
-			{
-				Set(x, h - 1, edge);
-				Set(x, 0, black);
-			}
-			// Gauges: two each side of the middle, where the game's own dials do not cover them.
-			int[] gx = { 7, 19, 45, 57 };
-			Color32[] needle = { new Color32(230, 60, 40, 255), white, white, new Color32(240, 170, 40, 255) };
-			for (int g = 0; g < gx.Length; g++)
-			{
-				int cx = gx[g], cy = 14;
-				for (int y = -6; y <= 6; y++)
-				{
-					for (int x = -6; x <= 6; x++)
-					{
-						int r2 = x * x + y * y;
-						if (r2 <= 30)
-						{
-							Set(cx + x, cy + y, r2 >= 22 ? rim : black);
-						}
-					}
-				}
-				Set(cx, cy + 4, white);
-				Set(cx - 4, cy, white);
-				Set(cx + 4, cy, white);
-				int dx = g % 2 == 0 ? 1 : -1;
-				for (int k = 0; k <= 3; k++)
-				{
-					Set(cx + dx * k / 2, cy + k, needle[g]);
-				}
-			}
-			// Radio: a dark window with green digits.
-			for (int y = 15; y <= 19; y++)
-			{
-				for (int x = 27; x <= 36; x++)
-				{
-					Set(x, y, black);
-				}
-			}
-			foreach (int x in new[] { 28, 29, 31, 32, 34, 35 })
-			{
-				Set(x, 17, new Color32(90, 220, 110, 255));
-				Set(x, 18, new Color32(60, 160, 80, 255));
-			}
-			// Warning lights.
-			Color32[] lights = { new Color32(220, 50, 40, 255), new Color32(240, 170, 40, 255), new Color32(80, 200, 90, 255) };
-			for (int l = 0; l < 3; l++)
-			{
-				Set(28 + 3 * l, 12, lights[l]);
-				Set(29 + 3 * l, 12, lights[l]);
-				Set(28 + 3 * l, 11, lights[l]);
-				Set(29 + 3 * l, 11, lights[l]);
-			}
-			// A row of toggle switches along the bottom.
-			for (int x = 3; x < w - 2; x += 4)
-			{
-				Set(x, 3, black);
-				Set(x, 4, black);
-				Set(x, 5, rim);
-				Set(x, 6, white);
-			}
-			return px;
+			float hh = 0.5f * f.PodHeight;
+			float shelfY = f.CentreY + WindscreenLow * hh;
+			panelHalf = 0.25f * f.PodWidth;
+			zb = f.NoseZ - (WindscreenEnd + 0.03f) * f.PodLength;
+			zt = zb + 0.06f * f.PodLength;
+			float yb = shelfY;
+			yt = f.CentreY - 0.12f * hh;
+			lean = new Vector3(0f, yt - yb, zt - zb);
+			toSeat = new Vector3(0f, zt - zb, -(yt - yb)).normalized;
+			faceMid = new Vector3(f.PodX, 0.5f * (yb + yt), 0.5f * (zb + zt));
+		}
+
+		/// <summary>
+		/// The panel's drawn face in the airframe's space: its bottom-left corner (texture 0,0), and the vectors along its bottom edge
+		/// (to u = 1) and up its side (to v = 1). <see cref="Airframe.FitPanel"/> projects the cockpit's controls onto it.
+		/// </summary>
+		internal static void PanelFace(Frame f, out Vector3 bottomLeft, out Vector3 right, out Vector3 up)
+		{
+			PanelGeometry(f, out float panelHalf, out _, out _, out _, out Vector3 lean, out Vector3 toSeat, out Vector3 faceMid);
+			Vector3 lift = toSeat * 0.004f * f.PodLength;
+			Vector3 side = Vector3.right * (0.94f * panelHalf);
+			Vector3 half = lean * 0.47f;
+			bottomLeft = faceMid - side - half + lift;
+			right = 2f * side;
+			up = 2f * half;
+		}
+
+		/// <summary>The face's texture size at about one texture pixel per dash pixel on the game's car.</summary>
+		internal static void PanelSize(Frame f, int across, out int w, out int h)
+		{
+			PanelFace(f, out _, out Vector3 right, out Vector3 up);
+			w = Mathf.Clamp(across, 32, 1024);
+			h = Mathf.Clamp(Mathf.RoundToInt(w * up.magnitude / Mathf.Max(1e-4f, right.magnitude)), 16, 1024);
+		}
+
+		/// <summary>The face as drawn before the cockpit's controls are measured: <see cref="Panel.GuessZones"/>, 300 pixels across.</summary>
+		internal static Color32[] PanelPixels(Frame f, out int w, out int h)
+		{
+			PanelSize(f, 300, out w, out h);
+			List<Panel.Zone> zones = Panel.GuessZones(out float seen);
+			return Panel.Draw(w, h, seen, zones).Pixels;
 		}
 
 		// ---- Outside ----
