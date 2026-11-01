@@ -4,6 +4,19 @@ A Half Grip (Steam app 4163270, Unity, Windows) mod: a chassis item, **Helicopte
 cockpit's wheel and shifter with a stick, a collective and a throttle, and flies the car. Made mainly for the Open World mod
 (`htubdawg/HalfGripOpenWorld`). Current release: see `Helicopter/mod.json`.
 
+## Always be ready for a context clear
+
+Sessions lose their context without warning. This file is the only memory the next session has, so after **every** step that
+changes the state of things, this file must already say everything needed to carry on:
+
+- **Update Status in the same commit as the change** (not "later"): what changed, what was checked and how, what is untested,
+  what waits on whom, the next step. An owner's report goes in Status as soon as it arrives, with the causes found, before fixing.
+- **Never leave work only in the session:** commit and push each finished step to the branch. No uncommitted edits at the end of
+  a turn. Scratch renders and decompiled code are lost; anything worth keeping goes in the repo (`docs/`, this file).
+- **Write down what was learned the hard way** (game facts, causes of bugs, the owner's wishes) under *Game facts* and *Owner's
+  wishes* below, so a fresh session doesn't repeat a mistake or re-ask a question.
+- Keep it short enough to read first thing; move settled history out of Status into one line each.
+
 ## How the mod runs
 
 - A **source mod** for [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) (BepInEx 5): the loader compiles
@@ -39,7 +52,38 @@ cockpit's wheel and shifter with a stick, a collective and a throttle, and flies
 - Work on a branch and open a PR; do not push to `main`.
 - **Keep Status current** after every push, PR or owner report.
 
+## Game facts (found in the scene dumps and decompiled code)
+
+- The **cockpit view's world camera** is the car's own `Main Camera` (tag MainCamera) at `CarBodyPivot/Head`, about
+  (-0.33, 2.02, -0.21) in the car's (`CarModel`, scale 1.5) space, so about roof height on the game's car. It draws the car's
+  layers, so the airframe is seen from inside. Keys 1/3 turn it up to 120 degrees left/right (`CameraSwitch`).
+- The **dash** (dials, stick, levers, hand) is a separate overlay: sprites on the INTERIOR layer, far from the car, drawn by
+  `InteriorCamera` (clear Nothing, depth 2) over the world. Things placed in the world sit behind it.
+- `RearViewCamera` (the mirror) sits by the head, about (0, 2.12, -0.12), looking back.
+- `CameraSwitch` hides the car's `windshields` and shows its `interiorModels` in the cockpit view.
+- The game's car: wheels at x +-1.65, z 2.75 / -2.5 (car space). Real body bounds not yet known (see Status).
+- `NSteeringWheel.Update` turns one of its lock-button sprites back on every frame (hence the every-frame hide).
+- Unity's front faces are clockwise; `Vector3.Cross(b - a, c - a)` points at the viewer. The URP Lit materials cull back faces.
+- See-through materials: the game ships `Universal Render Pipeline/2D/Sprite-Unlit-Default` (alpha blended, both sides) everywhere;
+  a transparent URP Lit variant may be stripped from the build, so don't use one.
+- Native Unity calls (`Quaternion.Euler`, `AngleAxis`, ...) throw in `tools/preview`; keep `Shape.cs` to managed struct code.
+
+## Owner's wishes (for the look)
+
+- Exterior: the green / blue glass / dark metal helicopter is liked ("exterior is fine"); glass opaque from outside.
+- From the seat you must see out, and the cabin must look modelled and textured: no empty holes, no big dark shapes in the view
+  (0.1.3's "giant black spike"), clean window edges ("front very messy" in 0.1.3).
+- Wanted: textured controls/panel, glass that looks like glass.
+- **Look at it before handing it over.** 0.1.2 went out unseen and was wrong twice over; since then every shape change is checked
+  with `tools/preview --model` / `--close` first, and the render is sent with the reply.
+
 ## Checking changes
+
+This session's setup (cloud container, repos side by side in `/home/user`): `HalfGripRefs` (note the capitals: pass
+`-p:Refs=/home/user/HalfGripRefs` to `tools/preview`), `HalfGripTools` (already built:
+`/home/user/HalfGripTools/dist/BepInEx/plugins/HalfGripTools/HalfGripTools.dll`), `halfgripopenworld`. Decompile with
+`dotnet tool install -g ilspycmd` then `DOTNET_ROLL_FORWARD=Major ~/.dotnet/tools/ilspycmd -t <Type> <refs>/game/HalfGrip_Data/Managed/Assembly-CSharp.dll`.
+Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, components, fields).
 
 - Compile (before every push), with HalfGripTools built against the refs:
   ```
@@ -57,6 +101,12 @@ cockpit's wheel and shifter with a stick, a collective and a throttle, and flies
   the helicopter on the car` once a race).
 
 ## Status (keep current)
+
+**Now:** 0.1.4 pushed to `claude/practical-thompson-8lxknd` (no PR yet: the owner hasn't asked for one). Waiting on the owner's
+in-game test of 0.1.4. **Next step:** read their screenshots and the `airframe built` log line; put the real body bounds, ground
+and head into `Model.Car` in `tools/preview/Model.cs`, re-render, and fix what they report.
+
+History:
 
 - **0.1.0** (owner's first test, Open World in a Multiplayer room): the cockpit build threw in `BuildStick` (the grab events are
   serialized fields, null on a part added in code), the half-built cockpit was not cleaned up and the build was retried every
