@@ -477,12 +477,40 @@ namespace HalfGripHelicopter
 			owned.Remove(panelTexture);
 			Destroy(panelTexture);
 			panelTexture = fresh;
+			// The console's lines as seen from the seat, at the gate's two sides: where a step up the face goes on the screen, brought back
+			// into the dash at the gate's depth. The gate is drawn leaning the same way.
+			float? Slope(Vector3 local)
+			{
+				Vector3 vp = view.WorldToViewportPoint(cockpit.World(local));
+				Vector2? uv = OnFace(vp);
+				if (!uv.HasValue || vp.z <= 0f)
+				{
+					return null;
+				}
+				Vector3 f0 = o + ru * uv.Value.x + vu * uv.Value.y;
+				Vector3 a0 = headCamera.WorldToViewportPoint(f0);
+				Vector3 a1 = headCamera.WorldToViewportPoint(f0 + vu * 0.1f);
+				if (a0.z <= 0f || a1.z <= 0f)
+				{
+					return null;
+				}
+				Vector3 p0 = cockpit.Local(view.ViewportToWorldPoint(new Vector3(a0.x, a0.y, vp.z)));
+				Vector3 p1 = cockpit.Local(view.ViewportToWorldPoint(new Vector3(a1.x, a1.y, vp.z)));
+				Vector3 d = p1 - p0;
+				return d.y > 1e-5f ? d.x / d.y : (float?)null;
+			}
+			float? sl = Slope(cockpit.GateLeft), sr = Slope(cockpit.GateRight);
+			if (sl.HasValue && sr.HasValue)
+			{
+				cockpit.FitGate(sl.Value, sr.Value);
+			}
+
 			System.Text.StringBuilder z = new System.Text.StringBuilder();
 			foreach (Panel.Zone zone in zones)
 			{
 				z.Append(" [" + zone.U0.ToString("0.00") + "-" + zone.U1.ToString("0.00") + " x " + zone.V0.ToString("0.00") + "-" + zone.V1.ToString("0.00") + (zone.Console ? " console" : "") + "]");
 			}
-			Mod.Info("Helicopter: panel fitted, " + w + "x" + h + " pixels, seen from " + seen.ToString("0.00") + " up, clear" + z);
+			Mod.Info("Helicopter: panel fitted, " + w + "x" + h + " pixels, seen from " + seen.ToString("0.00") + " up, gate leaning " + (sl.HasValue && sr.HasValue ? sl.Value.ToString("0.00") + " / " + sr.Value.ToString("0.00") : "as guessed") + ", clear" + z);
 		}
 
 		/// <summary>A point-filtered, repeating texture from plain pixels (rows from the bottom).</summary>

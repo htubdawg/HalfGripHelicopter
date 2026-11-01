@@ -52,6 +52,9 @@ namespace HalfGripHelicopter
 		/// <summary>A point in the interior's space as a point in the world.</summary>
 		internal Vector3 World(Vector3 local) => transform.parent != null ? transform.parent.TransformPoint(local) : local;
 
+		/// <summary>A point in the world as a point in the interior's space.</summary>
+		internal Vector3 Local(Vector3 world) => transform.parent != null ? transform.parent.InverseTransformPoint(world) : world;
+
 		internal float CollectiveValue => Collective != null ? Mathf.Clamp01(Collective.value) : 0f;
 		internal float ThrottleValue => Throttle != null ? Mathf.Clamp01(Throttle.value) : 0f;
 
@@ -64,7 +67,8 @@ namespace HalfGripHelicopter
 		// The levers' gate plate in dash pixels: front and back widths, height, front face, the slots' first row and travel, the levers'
 		// distance from the middle, and how far the plate's front edge is below the screen's bottom edge.
 		private const int PlateBottom = 66;
-		private const int PlateTop = 52;
+		// The plate's sides' lean (pixels across per row up) until the panel is measured: a plain trapezoid, as 0.1.6 drew it.
+		private const float GuessSlope = 0.13f;
 		private const int PlateHeight = 62;
 		private const int PlateFace = 8;
 		private const int Slot0 = 15;
@@ -179,7 +183,10 @@ namespace HalfGripHelicopter
 			Vector3 slot = plate + new Vector3(0f, (Slot0 - 1) * texel, 0f);
 			Collective = BuildLever("Collective", slot + new Vector3(-LeverGap * texel, 0f, 0f), true);
 			Throttle = BuildLever("Throttle", slot + new Vector3(LeverGap * texel, 0f, 0f), false);
-			float lx = Mathf.Max(PlateBottom * 0.5f, LeverGap + 12f) * texel;
+			FitGate(GuessSlope, -GuessSlope);
+			GateLeft = slot - new Vector3(PlateBottom * 0.5f * texel, 0f, 0f);
+			GateRight = slot + new Vector3(PlateBottom * 0.5f * texel, 0f, 0f);
+			float lx = Mathf.Max(PlateBottom * 0.5f, LeverGap + Art.LeverLean + 11f) * texel;
 			Areas.Add((new Vector3(plate.x - lx, plate.y, plate.z), new Vector3(plate.x + lx, slot.y + (Travel + Art.LeverShaft + 20) * texel, plate.z), true));
 			Collective.onReleased.AddListener(() =>
 			{
@@ -510,11 +517,54 @@ namespace HalfGripHelicopter
 			gate.gameObject.layer = layer;
 			gate.SetParent(transform, false);
 			gate.localPosition = at;
-			Canvas art = Art.Gate(PlateBottom, PlateTop, PlateHeight, PlateFace, LeverGap, Slot0, Travel);
-			Part("Sprite", art, new Vector2(0.5f, 1f / art.Height), gate, new Vector3(0f, 0f, 0.03f), 0);
+			Canvas art = Art.Gate(PlateBottom, PlateHeight, PlateFace, LeverGap, Slot0, Travel, GuessSlope, -GuessSlope);
+			gateRenderer = Part("Sprite", art, new Vector2(0.5f, 1f / art.Height), gate, new Vector3(0f, 0f, 0.03f), 0);
+		}
+
+		/// <summary>The front corners of the plate's top (at the slots' first row), in the interior's space, for measuring the lean.</summary>
+		internal Vector3 GateLeft { get; private set; }
+		internal Vector3 GateRight { get; private set; }
+
+		/// <summary>
+		/// Leans the gate's sides, its slots and the levers' travel to the console's lines as seen from the seat (pixels across per row
+		/// up, at the plate's left and right sides): the plate is drawn as part of the console behind it, which leans with the panel's
+		/// face (0.1.7: a plain trapezoid on a console that leant the other way looked "off-angle"). The slots keep their bottom ends, so
+		/// the levers (which take their anchor from where they stood as they woke) only turn their axis.
+		/// </summary>
+		internal void FitGate(float slopeLeft, float slopeRight)
+		{
+			slopeLeft = Mathf.Clamp(slopeLeft, -0.6f, 0.6f);
+			slopeRight = Mathf.Clamp(slopeRight, -0.6f, 0.6f);
+			if (gateRenderer != null)
+			{
+				Canvas art = Art.Gate(PlateBottom, PlateHeight, PlateFace, LeverGap, Slot0, Travel, slopeLeft, slopeRight);
+				Sprite sprite = MakeSprite(art, new Vector2(0.5f, 1f / art.Height), "HelicopterLeverGate");
+				gateRenderer.sprite = sprite;
+				Material m = gateRenderer.sharedMaterial;
+				foreach (string p in new[] { "_BaseMap", "_MainTex" })
+				{
+					if (m != null && m.HasProperty(p))
+					{
+						m.SetTexture(p, sprite.texture);
+					}
+				}
+			}
+			foreach ((LinearObject lever, int side) in new[] { (Collective, -1), (Throttle, 1) })
+			{
+				if (lever == null)
+				{
+					continue;
+				}
+				float slope = Art.SlotSlope(PlateBottom, side * LeverGap, slopeLeft, slopeRight);
+				// Along (slope, 1): the same height of travel, a little longer along the slant.
+				lever.anchorAngle = Mathf.Atan2(1f, slope);
+				lever.maxLimit = Travel * texel * Mathf.Sqrt(1f + slope * slope);
+			}
 		}
 
 		/// <summary>A lever standing in its slot, its collar at <paramref name="bottom"/> (value 0) and up <see cref="Travel"/> pixels.</summary>
+		private SpriteRenderer gateRenderer;
+
 		private LinearObject BuildLever(string name, Vector3 bottom, bool collective)
 		{
 			GameObject handle = new GameObject(name);
@@ -522,10 +572,11 @@ namespace HalfGripHelicopter
 			handle.transform.SetParent(transform, false);
 			// At the bottom of its travel: the lever's value runs 0 (down) to 1 (up).
 			handle.transform.localPosition = bottom;
-			Canvas art = Art.Lever(collective);
+			int side = collective ? -1 : 1;
+			Canvas art = Art.Lever(collective, side);
 			Part("Sprite", art, new Vector2(0.5f, 2.5f / art.Height), handle.transform, new Vector3(0f, 0f, -0.04f), 2);
-			// The hand takes it by the knob.
-			InteriorSquareCollider touch = Touch<InteriorSquareCollider>(handle.transform, new Vector3(0f, (Art.LeverShaft + 8) * texel, -0.1f));
+			// The hand takes it by the knob, which leans out beside the slot.
+			InteriorSquareCollider touch = Touch<InteriorSquareCollider>(handle.transform, new Vector3(side * Art.LeverLean * texel, (Art.LeverShaft + 8) * texel, -0.1f));
 			touch.width = 20f * texel;
 			touch.height = 20f * texel;
 			touch.hitBoxExpand = 1f * texel;

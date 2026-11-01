@@ -56,12 +56,14 @@ namespace HalfGripHelicopter
 			int length = 80;
 			Stick(sheet, 40, -20, length, 0, 0, false);
 			Stick(sheet, 100, -20, length, -16, 16, true);
+			// The gate as fitted to the owner's 0.1.7 screenshot: the console's lines lean left going up.
 			int gap = 13, slot0 = 15, travel = 36;
-			Canvas gate = Art.Gate(66, 52, 62, 8, gap, slot0, travel);
+			float sl = -0.12f, sr = -0.08f;
+			Canvas gate = Art.Gate(66, 62, 8, gap, slot0, travel, sl, sr);
 			int gx = 175 - gate.Width / 2, gy = -4 - 1;
 			Blit(sheet, gate, gx, gy);
-			Lever(sheet, 175 - gap, gy + slot0, travel, 0.5f, true);
-			Lever(sheet, 175 + gap, gy + slot0, travel, 1f, false);
+			Lever(sheet, 175 - gap, gy + slot0, travel, 0.5f, true, Art.SlotSlope(66, -gap, sl, sr));
+			Lever(sheet, 175 + gap, gy + slot0, travel, 1f, false, Art.SlotSlope(66, gap, sl, sr));
 
 			Png.Save(path, sheet.Pixels, sheet.Width, sheet.Height, clear ? 1 : 4);
 			Console.WriteLine("wrote " + path + ", icon " + filled + " of " + icon.Pixels.Length + " pixels drawn");
@@ -82,12 +84,12 @@ namespace HalfGripHelicopter
 			Blit(sheet, grip, footX + dx - grip.Width / 2, footY + length + dy - 2);
 		}
 
-		/// <summary>A lever with its collar's middle at (x, y0 + value * travel).</summary>
-		private static void Lever(Canvas sheet, int x, int y0, int travel, float value, bool collective)
+		/// <summary>A lever with its collar at value along its slot, which leans <paramref name="slope"/> pixels across per row.</summary>
+		private static void Lever(Canvas sheet, int x, int y0, int travel, float value, bool collective, float slope)
 		{
-			Canvas art = Art.Lever(collective);
-			int y = y0 + Mathf.RoundToInt(value * travel);
-			Blit(sheet, art, x - art.Width / 2, y - 2);
+			Canvas art = Art.Lever(collective, collective ? -1 : 1);
+			int dy = Mathf.RoundToInt(value * travel);
+			Blit(sheet, art, x + Mathf.RoundToInt(slope * dy) - art.Width / 2, y0 + dy - 2);
 		}
 
 		private static void Blit(Canvas into, Canvas art, int x0, int y0)

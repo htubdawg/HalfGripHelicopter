@@ -278,41 +278,55 @@ namespace HalfGripHelicopter
 		internal static readonly Color32 PlateDot = new Color32(66, 68, 74, 255);
 
 		/// <summary>
-		/// The levers' gate, after the car's H-shifter plate: a speckled grey top seen in perspective (<paramref name="top"/> wide at the back,
-		/// <paramref name="bottom"/> at the front) on a dark front face <paramref name="face"/> rows high, <paramref name="h"/> rows in all,
-		/// with two slots <paramref name="gap"/> either side of the middle from row <paramref name="slot0"/> for <paramref name="travel"/> rows.
-		/// Ticks at the quarters; the collective's (left) hover mark half way in yellow, the throttle's full mark in red. A pixel of margin
-		/// all round for the outline.
+		/// The levers' gate, after the car's H-shifter plate: a speckled grey plate <paramref name="bottom"/> wide at the front, on a dark
+		/// front face <paramref name="face"/> rows high, <paramref name="h"/> rows in all. Its sides lean <paramref name="slopeLeft"/> and
+		/// <paramref name="slopeRight"/> pixels across per row up (the console's lines as seen from the seat, from
+		/// <see cref="Airframe.FitPanel"/>), the slots between them, <paramref name="gap"/> either side of the middle at row
+		/// <paramref name="slot0"/>, running <paramref name="travel"/> rows. Ticks at the quarters; the collective's (left) hover mark half
+		/// way in yellow, the throttle's full mark in red. The front edge's middle is the canvas's middle column.
 		/// </summary>
-		internal static Canvas Gate(int bottom, int top, int h, int face, int gap, int slot0, int travel)
+		internal static Canvas Gate(int bottom, int h, int face, int gap, int slot0, int travel, float slopeLeft, float slopeRight)
 		{
-			Canvas c = new Canvas(bottom + 2, h + 2);
+			int extra = Mathf.CeilToInt(Mathf.Max(Mathf.Abs(slopeLeft), Mathf.Abs(slopeRight)) * h) + 2;
+			Canvas c = new Canvas(bottom + 2 * extra + 2, h + 2);
 			int mx = c.Width / 2;
+			float left0 = mx - bottom * 0.5f, right0 = mx + bottom * 0.5f;
+			int Left(int y) => Mathf.RoundToInt(left0 + slopeLeft * (y - face - 1));
+			int Right(int y) => Mathf.RoundToInt(right0 + slopeRight * (y - face - 1));
 			for (int y = 1; y <= h; y++)
 			{
-				int w = y <= face ? bottom : Mathf.RoundToInt(Mathf.Lerp(bottom, top, (float)(y - face - 1) / Mathf.Max(1, h - face - 1)));
-				c.Rect(mx - w / 2, y, w, 1, y <= face ? Dark : Plate);
+				c.Rect(Left(y), y, Right(y) - Left(y), 1, y <= face ? Dark : Plate);
 			}
 			Speckle(c, Plate, PlateDot, 7);
 			c.Shade(Light, Black, Black);
 			// The front edge catches the light.
-			int fw = bottom - 2;
-			c.Rect(mx - fw / 2, face + 1, fw, 1, Light);
-			c.Rect(mx - fw / 2, face, fw, 1, Black);
+			c.Rect(Left(face + 1) + 1, face + 1, Right(face + 1) - Left(face + 1) - 2, 1, Light);
+			c.Rect(Left(face) + 1, face, Right(face) - Left(face) - 2, 1, Black);
 			// Screws at the back corners.
-			foreach (int x in new[] { mx - top / 2 + 3, mx + top / 2 - 4 })
+			foreach (int x in new[] { Left(h - 3) + 3, Right(h - 3) - 4 })
 			{
 				c.Set(x, h - 3, Light);
 				c.Set(x, h - 4, Black);
 			}
 			foreach (int side in new[] { -1, 1 })
 			{
-				int x = mx + side * gap;
-				c.Rect(x - 3, slot0 - 3, 6, travel + 6, Dark);
-				c.Rect(x - 2, slot0 - 2, 4, travel + 4, Black);
+				float x0 = mx + side * gap;
+				float t = (x0 - left0) / Mathf.Max(1f, right0 - left0);
+				float slope = Mathf.Lerp(slopeLeft, slopeRight, t);
+				for (int y = slot0 - 3; y < slot0 + travel + 3; y++)
+				{
+					int x = Mathf.RoundToInt(x0 + slope * (y - slot0));
+					bool rim = y == slot0 - 3 || y == slot0 + travel + 2;
+					c.Rect(x - 3, y, 6, 1, Dark);
+					if (!rim)
+					{
+						c.Rect(x - 2, y, 4, 1, Black);
+					}
+				}
 				for (int q = 0; q <= 4; q++)
 				{
 					int y = slot0 + travel * q / 4;
+					int x = Mathf.RoundToInt(x0 + slope * (y - slot0));
 					Color32 mark = side < 0 && q == 2 ? Yellow : side > 0 && q == 4 ? Red : Light;
 					int len = mark.r == Light.r ? 2 : 3;
 					c.Rect(x - 4 - len, y, len, 1, mark);
@@ -322,42 +336,54 @@ namespace HalfGripHelicopter
 			return c;
 		}
 
+		/// <summary>The slope (pixels across per row up) of a slot <paramref name="offset"/> pixels from the plate's middle.</summary>
+		internal static float SlotSlope(int bottom, int offset, float slopeLeft, float slopeRight)
+		{
+			return Mathf.Lerp(slopeLeft, slopeRight, (offset + bottom * 0.5f) / Mathf.Max(1f, bottom));
+		}
+
 		/// <summary>Height of a lever's shaft in pixels, from the collar in the slot to the knob.</summary>
 		internal const int LeverShaft = 24;
 
+		/// <summary>How far a lever's shaft leans out from its slot, in pixels, so the knob stands beside the slot and its path stays in
+		/// sight.</summary>
+		internal const int LeverLean = 10;
+
 		/// <summary>
-		/// A lever standing up out of its slot: a collar (the pivot, at row 2), a shaft and the knob: the collective's a black head with a
-		/// yellow and black band and a red button, the throttle's a red twist grip.
+		/// A lever standing up out of its slot, leaning outwards (<paramref name="side"/> -1 to the left, 1 to the right): a collar in the
+		/// slot (the pivot, at row 2 of the middle column), a shaft and the knob: the collective's a black head with a yellow and black
+		/// band and a red button, the throttle's a red twist grip.
 		/// </summary>
-		internal static Canvas Lever(bool collective)
+		internal static Canvas Lever(bool collective, int side)
 		{
-			Canvas c = new Canvas(22, LeverShaft + 20);
+			Canvas c = new Canvas(2 * LeverLean + 24, LeverShaft + 20);
 			int mx = c.Width / 2;
-			c.Rect(mx - 2, 2, 4, LeverShaft + 2, Grey);
+			int kx = mx + side * LeverLean;
+			c.Line(mx, 3, kx, LeverShaft + 3, 4, Grey);
 			int k = LeverShaft + 2;
 			if (collective)
 			{
-				c.Rect(mx - 9, k, 18, 14, Dark);
-				c.Rect(mx - 8, k + 14, 16, 2, Dark);
+				c.Rect(kx - 8, k, 16, 14, Dark);
+				c.Rect(kx - 7, k + 14, 14, 2, Dark);
 			}
 			else
 			{
-				c.Ellipse(mx - 9, k, 18, 16, Red);
+				c.Ellipse(kx - 8, k, 16, 16, Red);
 			}
 			c.Ellipse(mx - 5, 0, 10, 5, Dark);
 			c.Shade(Light, Black, Black);
 			if (collective)
 			{
-				for (int x = mx - 8; x < mx + 8; x++)
+				for (int x = kx - 7; x < kx + 7; x++)
 				{
-					c.Rect(x, k + 4, 1, 3, ((x + 16) / 2) % 2 == 0 ? Yellow : Black);
+					c.Rect(x, k + 4, 1, 3, ((x - kx + 16) / 2) % 2 == 0 ? Yellow : Black);
 				}
-				c.Rect(mx + 3, k + 10, 3, 3, Red);
-				c.Rect(mx - 6, k + 10, 4, 2, Grey);
+				c.Rect(kx + 2, k + 10, 3, 3, Red);
+				c.Rect(kx - 5, k + 10, 4, 2, Grey);
 			}
 			else
 			{
-				for (int x = mx - 6; x <= mx + 6; x += 3)
+				for (int x = kx - 5; x <= kx + 5; x += 3)
 				{
 					c.Rect(x, k + 3, 1, 10, new Color32(120, 30, 28, 255));
 				}

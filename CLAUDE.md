@@ -75,6 +75,11 @@ changes the state of things, this file must already say everything needed to car
 - From the seat you must see out, and the cabin must look modelled and textured: no empty holes, no big dark shapes in the view
   (0.1.3's "giant black spike"), clean window edges ("front very messy" in 0.1.3).
 - Wanted: textured controls/panel, glass that looks like glass.
+- Cockpit (0.1.4-0.1.7): no car read-outs (dials, gear box, mirror, lap-delta meter), but **keep the board at the top right**. The
+  controls in the car's own dash style (chunky shaded sprites, speckled grey plates like the H-shifter), the stick big (2-3x 0.1.5's)
+  with its mount out of sight, nothing on the panel behind the controls ("can't have the stick mounted on a speedometer"), the
+  panel at the dash's pixel size. 0.1.7's look is loved; the gate must follow the console's angle, and the levers must not hide
+  their slots.
 - **Look at it before handing it over.** 0.1.2 went out unseen and was wrong twice over; since then every shape change is checked
   with `tools/preview --model` / `--close` first, and the render is sent with the reply.
 
@@ -104,12 +109,10 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 ## Status (keep current)
 
-**Now:** 0.1.7 pushed to `claude/practical-thompson-8lxknd` (no PR yet: the owner hasn't asked for one). Waiting on the owner's
-in-game test of 0.1.7. **Next step:** read their screenshots and the `cockpit built` / `airframe built` / `panel fitted` log lines (the
-clear zones must sit behind the stick and the levers; if not, the projection in `Airframe.FitPanel` is wrong); check the stick's
-size and the gate plate against the cockpit (lay `tools/preview -- --clear` over their screenshot at ~3.5 screen px per dash px
-at 1080p); put the real body bounds, ground and head into `Model.Car` in
-`tools/preview/Model.cs`, re-render, and fix what they report.
+**Now:** 0.1.8 pushed to `claude/practical-thompson-8lxknd` (no PR yet: the owner hasn't asked for one). Waiting on the owner's
+in-game test of 0.1.8. **Next step:** read their screenshot and the `panel fitted ... gate leaning L / R` log line (the gate's sides
+and slots must run along the console's edges; L and R should be about -0.1, leaning left going up) and fix what they report. Then
+the flight checks still open (below).
 
 History:
 
@@ -168,7 +171,18 @@ History:
   free stretches above the screen's bottom edge; logs `panel fitted, WxH, seen from v, clear [u0-u1 x v0-v1]...`. Falls back to
   `Panel.GuessZones`. Checked with `tools/preview -- --panel` and `--close`, compiles; **not tested in game.** Assumes the head
   camera looks ahead at the build (a head turned then would misplace the zones; it is not redone).
-- **Waiting on the owner:** in-game test of 0.1.7 (the panel round the controls); and of 0.1.6 (stick size, levers' look, the `||` gone, the board still there; the stick and
+- **0.1.7 test** (owner, screenshot + log): "really good ... I love it". The panel fitted round the controls (log: 258x159 pixels,
+  seen from 0.57, stick zones u -0.10..0.17, console u 0.43..0.79; dash pixel 0.037 on that window). Two points: the lever gate is
+  "slightly off-angle" (it was a symmetric trapezoid; the console behind, seen from the seat left of centre, leans ~7 degrees left
+  going up), and the levers shouldn't line up with their slots, since they hide them. The log's real car measures are now in
+  `Model.Car` (pod 7.59 x 3.03 x 2.58 in game, 7.59 x 3.04 x 2.58 in the preview).
+- **0.1.8** on `claude/practical-thompson-8lxknd`: `Airframe.FitPanel` also measures the console's lean at the gate's two front
+  corners (a step up the face, through the head camera and back into the dash at the gate's depth) and calls `Cockpit.FitGate`: the
+  plate's sides and the slots lean that way (`Art.Gate(..., slopeLeft, slopeRight)`) and the levers' axis turns with them
+  (`LinearObject.anchorAngle` is read live; its anchor is fixed at wake, at the slot's bottom; `maxLimit` lengthened so the travel
+  is the same height). The levers' shafts lean out 10 pixels (`Art.LeverLean`), the knobs beside the slots; their colliders
+  follow. Checked with `tools/preview`, compiles; **not tested in game.**
+- **Waiting on the owner:** in-game test of 0.1.8 (gate angle, levers beside their slots, still grabbed by the knobs); and of 0.1.6 (stick size, levers' look, the `||` gone, the board still there; the stick and
   levers still grab and work); still open from 0.1.4: the nose from outside, and the log line `airframe built on body ... head ... pod ...` (the real car measures for
   `Model.Car`). Earlier checks still open: controls placement and grab, lift-off at about half collective, hover, landing, the
   garage on dropping the collective, other items refused. Unknown: whether the interior camera moves (head look) enough to show the

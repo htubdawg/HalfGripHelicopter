@@ -14,13 +14,14 @@ namespace HalfGripHelicopter
 		private const float Fov = 60.57f;
 		private const float Near = 0.1f;
 
-		/// <summary>A car like the game's (wheelbase 5.25, track 3.3, head at CarBodyPivot/Head), and a smaller one.</summary>
+		/// <summary>The game's car as the owner's 0.1.7 log measured it (body bounds 10.99 x 2.39 x 12.24 at (0, 1.32, 0.05), ground -0.09, head
+		/// at CarBodyPivot/Head; pod 7.59 x 3.03 x 2.58), and a smaller one.</summary>
 		internal static Shape.Frame Car(bool small)
 		{
 			Vector3 head = new Vector3(-0.33f, 2.02f, -0.21f);
 			return small
 				? Shape.Measure(5.2f, 2.6f, 0f, 0.2f, -0.1f, head)
-				: Shape.Measure(8.0f, 3.6f, 0f, 0.1f, -0.1f, head);
+				: Shape.Measure(12.24f, 10.99f, 0f, 0.05f, -0.09f, head);
 		}
 
 		internal static Color32[] View(Shape.Frame f, Vector3 eye, float yaw, float pitch, int w, int h, bool mirror)
