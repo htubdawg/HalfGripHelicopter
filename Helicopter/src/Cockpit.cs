@@ -477,7 +477,28 @@ namespace HalfGripHelicopter
 			// The art's bottom-left corner (its 1-pixel outline) at the casing's corner less the rim and the front face.
 			Vector3 corner = new Vector3(min.x - (MountRim + 1) * texel, min.y - (MountRim + MountFace + 1) * texel, min.z + MountBack);
 			mount.transform.localPosition = corner;
-			Part("Sprite", art, Vector2.zero, mount.transform, Vector3.zero, 0);
+			SpriteRenderer plate = Part("Sprite", art, Vector2.zero, mount.transform, Vector3.zero, 0);
+			// Drawn before the GPS: sprites are drawn in sorting order first and depth only after, and the GPS's screen (unlit) writes no
+			// depth, so a plate sorted with the cockpit's controls covered the whole GPS (0.2.2). The GPS's own layer, one order below it.
+			if (gpsScreen != null)
+			{
+				bool any = false;
+				int order = 0, layerId = plate.sortingLayerID;
+				foreach (SpriteRenderer r in gpsScreen.GetComponentsInChildren<SpriteRenderer>(true))
+				{
+					if (!any || r.sortingOrder < order)
+					{
+						order = r.sortingOrder;
+						layerId = r.sortingLayerID;
+						any = true;
+					}
+				}
+				if (any)
+				{
+					plate.sortingLayerID = layerId;
+					plate.sortingOrder = order - 1;
+				}
+			}
 			Gps = (new Vector3(corner.x, corner.y, corner.z), new Vector3(corner.x + art.Width * texel, corner.y + art.Height * texel, corner.z));
 		}
 

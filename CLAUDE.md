@@ -69,6 +69,8 @@ changes the state of things, this file must already say everything needed to car
 - The "AirTime x1.2s" line on the screen is a combo: `CarControllerNew.FixedUpdate` calls
   `ComboManager.IncrementComboContinuous("AirTime", ...)` while no wheel touches (`Lock.NoAirTime` skips it while flying). Other
   combos: Drift (`GripIndicator`), SpinOut (`CarLink.FixedUpdate`, already skipped), OverTAKE, Kill, ShortCut.
+- Dash sprites draw in **sorting order first**, depth only after; unlit sprites (the GPS's screen) write no depth. A part meant to
+  be behind another dash sprite needs a lower sorting order, not only a larger z (0.2.2's GPS plate covered the GPS).
 - The MiniMap's GPS builds its sprites (`Casing`, `Screen`) in `GpsScreen.Start`/`Update`, after the cockpit; a live refit can add
   or remove it.
 - Unity's front faces are clockwise; `Vector3.Cross(b - a, c - a)` points at the viewer. The URP Lit materials cull back faces.
@@ -116,7 +118,10 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 ## Status (keep current)
 
-**Now:** 0.2.2 on `claude/practical-thompson-8lxknd`, PR #3 (not merged). Owner's asks after testing 0.2.0 (screenshot: Open World,
+**Now:** 0.2.3 on `claude/practical-thompson-8lxknd`, PR #3 (not merged). 0.2.3 fixes 0.2.2's test (owner's screenshot: "you broke
+the GPS, it's covered in some metal texture"): the plate was drawn over the whole GPS. Sprites draw in sorting order first, depth
+only after, and the GPS's unlit screen writes no depth; the plate had the cockpit controls' order. It now takes the GPS's sorting
+layer at one order below its lowest sprite. Compiles; **not tested in game.** History of 0.2.x: Owner's asks after testing 0.2.0 (screenshot: Open World,
 GPS fitted): (1) two small lights left over above the old shifter: the car's money and enemy-targeting lights (`DollarSign`,
 `EnemyTargetingLED`), now hidden with the other read-outs; (2) the "AirTime" combo line on the screen: `Lock.NoAirTime` skips it
 while flying; (3) the GPS looked stuck on, over the panel's drawn gauges. 0.2.1 drew a dark recessed bay on the panel's face round it:
