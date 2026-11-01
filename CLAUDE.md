@@ -118,7 +118,7 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 ## Status (keep current)
 
-**Now:** 0.2.4 on `claude/practical-thompson-8lxknd`, PR #3 (not merged). **0.2.3 test** (owner's screenshot, Open World, a gun fitted):
+**Now:** 0.2.4 released on `main` (PR #3, merged). Open: PR #4 on `claude/practical-thompson-8lxknd` (README install via the HalfGripMods installer, no code change). **0.2.3 test** (owner's screenshot, Open World, a gun fitted):
 the plate *still* covered the whole GPS (only the plate's speckle and seat line showed where the GPS should be), so sorting one
 order below the GPS was not the cause, or not the only one. Likely depth: the plate (lit, writes depth) stood at the GPS's *front*
 z (the screen) + 0.03, while the casing stands 0.02 world units behind the screen, and in the interior's units (root scale unknown)
@@ -128,7 +128,8 @@ reads the casing's picture through a render texture, since the GPS makes it unre
 cutting the whole box), the seat shadow follows the hole's edge, and the plate stands behind the GPS's *back* z + 0.03. Logs `the
 GPS's plate has a hole of N of its M middle pixels` and `the GPS's plate is WxH px at z ... (GPS a to b), sorting L/O, material
 '...' queue Q`. Checked: compiles, `tools/preview -- --fitted` (stand-in casing with cut corners) looked at. **Owner tested 0.2.4: "looks good"**;
-PR #3 retitled for 0.2.4, ready to merge. **Next step:** the owner merges PR #3; then restart the branch from `origin/main`. History of 0.2.x: Owner's asks after testing 0.2.0 (screenshot: Open World,
+The README's Install now leads with the HalfGripMods installer (`+ ADD` with the
+`.../tree/main/Helicopter` folder link; the link form is from the installer's README, not tried), the copy-by-hand way after it. **Next step:** the owner merges PR #4; then restart the branch from `origin/main`. History of 0.2.x: Owner's asks after testing 0.2.0 (screenshot: Open World,
 GPS fitted): (1) two small lights left over above the old shifter: the car's money and enemy-targeting lights (`DollarSign`,
 `EnemyTargetingLED`), now hidden with the other read-outs; (2) the "AirTime" combo line on the screen: `Lock.NoAirTime` skips it
 while flying; (3) the GPS looked stuck on, over the panel's drawn gauges. 0.2.1 drew a dark recessed bay on the panel's face round it:

@@ -46,8 +46,27 @@ A short showcase of the Helicopter in game. *(Click the picture to watch it on Y
 
 ## Install
 
-Copy only the `Helicopter` folder into `<game>\BepInEx\HalfGripMods\`, so that `mod.json` sits directly in
-`HalfGripMods\Helicopter\`. Not the whole repository download.
+### Easy way: the HalfGripMods installer
+
+1. Download `HalfGrip-Mods-Installer.exe` from the newest release of
+   [HalfGripMods](https://github.com/4l3x4nd3r0/HalfGripMods/releases) and double-click it. If Windows says "Windows protected
+   your PC", press **More info**, then **Run anyway**. It finds the game through Steam (or asks for its folder) and installs
+   BepInEx and HalfGripTools for you.
+2. Close the game. Press **+ ADD** and paste this link to the mod's folder:
+   ```
+   https://github.com/htubdawg/HalfGripHelicopter/tree/main/Helicopter
+   ```
+   Then press **INSTALL** on the Helicopter's card.
+3. Start the game from Steam. The first start takes a little longer while the mods compile.
+
+Add [Open World](https://github.com/htubdawg/HalfGripOpenWorld) and [MiniMap](https://github.com/htubdawg/HalfGripMiniMap) (for
+the GPS) the same way, using their own links. **CHECK NOW** in the installer looks for updates.
+
+### By hand
+
+Install BepInEx 5 and [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+ as its README says. Then copy only the
+`Helicopter` folder into `<game>\BepInEx\HalfGripMods\`, so that `mod.json` sits directly in `HalfGripMods\Helicopter\`, not
+the whole repository download.
 
 ## Settings
 
