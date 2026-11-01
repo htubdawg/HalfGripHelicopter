@@ -1,0 +1,77 @@
+using System;
+using UnityEngine;
+
+namespace HalfGripHelicopter
+{
+	/// <summary>
+	/// One sheet of the mod's pictures, from its own drawing code: the shop icon at the game's body-card size, then a mock of the
+	/// cockpit (stick at rest, pushed forward-left and held; collective at the hover mark, throttle full). Exits 1 if the icon is blank.
+	///   dotnet run -c Release --project tools/preview -- out.png
+	/// </summary>
+	internal static class Program
+	{
+		private static int Main(string[] args)
+		{
+			string path = args.Length > 0 ? args[0] : "preview.png";
+			Canvas sheet = new Canvas(200, 90);
+			sheet.Rect(0, 0, sheet.Width, sheet.Height, new Color32(58, 52, 50, 255));
+
+			Canvas icon = Art.Icon(43, 13);
+			int filled = 0;
+			foreach (Color32 c in icon.Pixels)
+			{
+				filled += c.a > 0 ? 1 : 0;
+			}
+			Blit(sheet, icon, 4, 72);
+
+			Stick(sheet, 20, 8, 0, 0, false);
+			Stick(sheet, 64, 8, -12, 12, true);
+			Lever(sheet, 120, 30, 0.5f, Art.Yellow, true);
+			Lever(sheet, 140, 30, 1f, Art.Red, false);
+
+			Png.Save(path, sheet.Pixels, sheet.Width, sheet.Height, 4);
+			Console.WriteLine("wrote " + path + ", icon " + filled + " of " + icon.Pixels.Length + " pixels drawn");
+			return filled == 0 ? 1 : 0;
+		}
+
+		/// <summary>The stick as the cockpit draws it: boot at the foot, the shaft in whole pixels, the grip at (dx, dy) from rest.</summary>
+		private static void Stick(Canvas sheet, int footX, int footY, int dx, int dy, bool locked)
+		{
+			Canvas boot = Art.Boot();
+			Blit(sheet, boot, footX - boot.Width / 2, footY - boot.Height / 2);
+			int gate = 12, length = 34;
+			Canvas shaft = new Canvas(2 * gate + 9, length + gate + 4);
+			int ox = shaft.Width / 2;
+			shaft.Line(ox, 2, ox + dx, Math.Clamp(length + dy, 2, shaft.Height - 2), 3, Art.Grey);
+			shaft.Shade(Art.Light, Art.Dark, Art.Black);
+			Blit(sheet, shaft, footX - ox, footY);
+			Canvas grip = Art.Grip(locked);
+			Blit(sheet, grip, footX + dx - grip.Width / 2, footY + length + dy - Mathf.RoundToInt(grip.Height * 0.1f));
+		}
+
+		private static void Lever(Canvas sheet, int x, int y, float value, Color32 colour, bool banded)
+		{
+			int slotLength = 44, travel = 36;
+			Canvas slot = Art.Slot(slotLength, banded ? Art.Yellow : Art.Grey);
+			Blit(sheet, slot, x - slot.Width / 2, y - slotLength / 2);
+			Canvas handle = Art.Handle(colour, banded);
+			int hy = y - travel / 2 + Mathf.RoundToInt(value * travel);
+			Blit(sheet, handle, x - handle.Width / 2, hy - handle.Height / 2);
+		}
+
+		private static void Blit(Canvas into, Canvas art, int x0, int y0)
+		{
+			for (int y = 0; y < art.Height; y++)
+			{
+				for (int x = 0; x < art.Width; x++)
+				{
+					Color32 c = art.Get(x, y);
+					if (c.a > 0)
+					{
+						into.Set(x0 + x, y0 + y, c);
+					}
+				}
+			}
+		}
+	}
+}
