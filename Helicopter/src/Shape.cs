@@ -4,7 +4,7 @@ using UnityEngine;
 namespace HalfGripHelicopter
 {
 	/// <summary>The colours the helicopter is painted in; each is one submesh and one material.</summary>
-	internal enum Paint { Body, Glass, Metal, Wall, Floor, Seat }
+	internal enum Paint { Body, Glass, Metal, Wall, Floor, Seat, Panel, Pane }
 
 	/// <summary>
 	/// Plain geometry of one piece of the helicopter: vertices, UVs and a triangle list per paint, wound so that the side meant to be
@@ -71,7 +71,9 @@ namespace HalfGripHelicopter
 	/// <item>Two skins. The outer faces out, painted body, glass and frames: from inside it is culled, so the glass, opaque from
 	/// outside, is clear from inside. The inner, a little smaller, faces in and has holes where the glass is, so from the seat the
 	/// walls, floor and frames show and the windows look out. It ends at a bulkhead behind the seats.</item>
-	/// <item>Inside: a floor, two seats and an instrument panel under the windscreen.</item>
+	/// <item>Glass seen from inside: a third skin just inside the windows, faintly tinted with glare bands (drawn see-through).</item>
+	/// <item>Inside: a glareshield along the windscreen's bottom edge, an instrument panel with a drawn face under it, a floor, two
+	/// seats.</item>
 	/// <item>Outside: engine housing, mast and two-blade-pair rotor, tail boom, fin, stabiliser, tail rotor, skids on struts at the
 	/// wheels' bottom.</item>
 	/// </list>
@@ -81,7 +83,7 @@ namespace HalfGripHelicopter
 		/// <summary>The inside's speckle texture repeats every this many car units (32 texels of about 0.04).</summary>
 		internal const float TextureSpan = 1.28f;
 
-		private const int Around = 32;
+		private const int Around = 96;
 		private const float NoseEnd = 0.28f;
 		private const float TailStart = 0.6f;
 		private const float SuperEllipse = 2.6f;
@@ -134,29 +136,41 @@ namespace HalfGripHelicopter
 			return f;
 		}
 
-		/// <summary>All of it: outer skin and outside parts, the cabin, the main rotor and the tail rotor (each turning about its pivot).</summary>
+		/// <summary>All of it: outer skin and outside parts, the cabin, the glass seen from inside, the main rotor and the tail rotor
+		/// (each turning about its pivot).</summary>
 		internal static List<Piece> Build(Frame f)
 		{
 			Piece outer = new Piece("Fuselage");
 			Piece cabin = new Piece("Cabin") { CastsShadows = false };
-			Pod(outer, f, false);
-			Pod(cabin, f, true);
+			Piece panes = new Piece("Panes") { CastsShadows = false };
+			Pod(outer, f, Skin.Outer);
+			Pod(cabin, f, Skin.Cabin);
+			Pod(panes, f, Skin.Panes);
 			Interior(cabin, f);
 			Outside(outer, f, out Piece main, out Piece tail);
-			return new List<Piece> { outer, cabin, main, tail };
+			return new List<Piece> { outer, cabin, panes, main, tail };
 		}
 
 		// ---- The pod ----
 
-		/// <summary>How far along the pod (0 nose, 1 tail) ring <paramref name="i"/> of <paramref name="rings"/> is: the nose's rings
-		/// close together where its curve is tight.</summary>
-		private static float RingT(int i, int noseRings, int rings)
+		private enum Skin { Outer, Cabin, Panes }
+
+		private const int NoseRings = 24;
+		private const int Rings = 72;
+		private const float PaneScale = 0.965f;
+		private const float WindscreenEnd = 0.25f;
+		private const float WindscreenLow = -0.55f;
+		private const float WindscreenHigh = 0.45f;
+
+		/// <summary>How far along the pod (0 nose, 1 tail) ring <paramref name="i"/> is: the nose's rings close together where its
+		/// curve is tight.</summary>
+		private static float RingT(int i)
 		{
-			if (i <= noseRings)
+			if (i <= NoseRings)
 			{
-				return NoseEnd * (1f - Mathf.Cos(0.5f * Mathf.PI * i / noseRings));
+				return NoseEnd * (1f - Mathf.Cos(0.5f * Mathf.PI * i / NoseRings));
 			}
-			return NoseEnd + (1f - NoseEnd) * (i - noseRings) / (rings - noseRings);
+			return NoseEnd + (1f - NoseEnd) * (i - NoseRings) / (Rings - NoseRings);
 		}
 
 		/// <summary>The pod's cross-section at <paramref name="t"/>: its half sizes and its middle's height above the cabin's.</summary>
@@ -189,63 +203,174 @@ namespace HalfGripHelicopter
 		}
 
 		/// <summary>A point on the pod: ring <paramref name="t"/>, round its section at angle <paramref name="a"/> (0 at the bottom).</summary>
-		private static Vector3 PodPoint(Frame f, float t, float a, float scale, out float side, out float up)
+		private static Vector3 PodPoint(Frame f, float t, float a, float scale)
 		{
 			Section(f, t, out float hw, out float hh, out float rise);
 			float sn = Mathf.Sin(a);
 			float cn = -Mathf.Cos(a);
-			side = sn;
-			up = cn;
 			float e = 2f / SuperEllipse;
 			float x = Mathf.Sign(sn) * Mathf.Pow(Mathf.Abs(sn), e);
 			float y = Mathf.Sign(cn) * Mathf.Pow(Mathf.Abs(cn), e);
 			return new Vector3(f.PodX + scale * hw * x, f.CentreY + rise + scale * hh * y, f.NoseZ - t * f.PodLength);
 		}
 
-		/// <summary>
-		/// Which parts of the pod are glass, at <paramref name="t"/> along it, <paramref name="up"/> and <paramref name="side"/> round
-		/// it (-1 to 1): the windscreen over the nose's top, the chin bubble, and a door window each side by the head.
-		/// <paramref name="grow"/> widens all of them, for the frames round them.
-		/// </summary>
-		private static bool Glass(float t, float up, float side, float grow)
+		/// <summary>The pod's half width at height <paramref name="y"/> (car space) at <paramref name="t"/>, shrunk by
+		/// <paramref name="scale"/>, or 0 where the section does not reach that height.</summary>
+		private static float HalfWidthAt(Frame f, float t, float y, float scale)
 		{
-			bool windscreen = t < NoseEnd - 0.03f + 0.3f * grow && up > -0.3f - grow && up < 0.45f + grow;
-			bool chin = t < 0.1f + 0.3f * grow && up > -0.85f - grow;
-			bool door = t > 0.3f - 0.3f * grow && t < 0.52f + 0.3f * grow && Mathf.Abs(side) > 0.6f - grow && up > -0.25f - grow && up < 0.6f + grow;
-			return windscreen || chin || door;
+			Section(f, t, out float hw, out float hh, out float rise);
+			if (hh <= 0f)
+			{
+				return 0f;
+			}
+			float v = Mathf.Abs((y - f.CentreY - rise) / (scale * hh));
+			if (v >= 1f)
+			{
+				return 0f;
+			}
+			return scale * hw * Mathf.Pow(1f - Mathf.Pow(v, SuperEllipse), 1f / SuperEllipse);
 		}
 
-		private static void Pod(Piece p, Frame f, bool inside)
+		/// <summary>
+		/// Which parts of the pod are glass, at <paramref name="t"/> along it, at height <paramref name="y"/> and sideways
+		/// <paramref name="x"/> (both as fractions of the cabin's half height and width, from its middle): the windscreen, cut by two
+		/// level lines across the nose, and a door window each side by the head. Level cuts give clean curved edges on the round nose
+		/// (0.1.3 cut by angle round each ring, which pinched the glass to a point at the tip and left a spike of floor inside).
+		/// <paramref name="grow"/> widens them, for the frames round them.
+		/// </summary>
+		private static bool Glass(float t, float y, float x, float grow)
 		{
-			const int noseRings = 10;
-			const int rings = 34;
-			float scale = inside ? InnerScale : 1f;
-			int last = rings;
-			if (inside)
+			bool windscreen = t < WindscreenEnd + 0.25f * grow && y > WindscreenLow - grow && y < WindscreenHigh + grow;
+			bool door = t > 0.3f - 0.25f * grow && t < 0.52f + 0.25f * grow && Mathf.Abs(x) > 0.5f && y > -0.25f - grow && y < 0.6f + grow;
+			return windscreen || door;
+		}
+
+		/// <summary>The heights (fractions of the cabin's half height) where a window's or a frame's edge runs level, lowest first.</summary>
+		private static readonly float[] EdgeLevels =
+		{
+			WindscreenLow - Frames, WindscreenLow, -0.25f - Frames, -0.25f, WindscreenHigh, WindscreenHigh + Frames, 0.6f, 0.6f + Frames,
+		};
+
+		private static int[] columnsPerGap;
+
+		/// <summary>The angle (0 bottom, pi top, right side) where ring <paramref name="t"/> reaches a level, or the bottom or top
+		/// where it does not reach it.</summary>
+		private static float LevelAngle(Frame f, float t, float level)
+		{
+			Section(f, t, out _, out float hh, out float rise);
+			float yy = hh > 0f ? (level * 0.5f * f.PodHeight - rise) / hh : (level > 0f ? 1f : -1f);
+			if (yy <= -1f)
+			{
+				return 0f;
+			}
+			if (yy >= 1f)
+			{
+				return Mathf.PI;
+			}
+			float cn = Mathf.Sign(yy) * Mathf.Pow(Mathf.Abs(yy), 0.5f * SuperEllipse);
+			return Mathf.Acos(Mathf.Clamp(-cn, -1f, 1f));
+		}
+
+		/// <summary>
+		/// The angles round ring <paramref name="t"/>. Every ring has the same columns, and each window and frame edge has a column of
+		/// its own that sits exactly on that edge's level on every ring (bottom or top where the ring doesn't reach it); the columns
+		/// between are spread evenly. The edges then run along the mesh's lines. 0.1.3 cut across the mesh's squares, and the
+		/// next try snapped the nearest column per ring, which jumped from column to column along the nose: both saw-toothed.
+		/// </summary>
+		private static float[] Angles(Frame f, float t)
+		{
+			int half = Around / 2;
+			int gaps = EdgeLevels.Length + 1;
+			if (columnsPerGap == null)
+			{
+				// Columns per gap between edges in proportion to its size round the cabin's own section, at least one each.
+				float[] keys = Keys(f, 0.45f);
+				columnsPerGap = new int[gaps];
+				int used = 0;
+				int widest = 0;
+				for (int g = 0; g < gaps; g++)
+				{
+					columnsPerGap[g] = Mathf.Max(1, Mathf.RoundToInt(half * (keys[g + 1] - keys[g]) / Mathf.PI));
+					used += columnsPerGap[g];
+					if (columnsPerGap[g] > columnsPerGap[widest])
+					{
+						widest = g;
+					}
+				}
+				columnsPerGap[widest] += half - used;
+			}
+			float[] k = Keys(f, t);
+			float[] a = new float[Around + 1];
+			int j = 0;
+			for (int g = 0; g < gaps; g++)
+			{
+				for (int c = 0; c < columnsPerGap[g]; c++)
+				{
+					a[j++] = Mathf.Lerp(k[g], k[g + 1], (float)c / columnsPerGap[g]);
+				}
+			}
+			a[half] = Mathf.PI;
+			for (int m = 1; m < half; m++)
+			{
+				a[Around - m] = 2f * Mathf.PI - a[m];
+			}
+			a[Around] = 2f * Mathf.PI;
+			return a;
+		}
+
+		/// <summary>The bottom, each edge level's angle in order, and the top, on ring <paramref name="t"/>.</summary>
+		private static float[] Keys(Frame f, float t)
+		{
+			float[] k = new float[EdgeLevels.Length + 2];
+			k[0] = 0f;
+			for (int i = 0; i < EdgeLevels.Length; i++)
+			{
+				k[i + 1] = Mathf.Max(k[i], LevelAngle(f, t, EdgeLevels[i]));
+			}
+			k[k.Length - 1] = Mathf.PI;
+			return k;
+		}
+
+		/// <summary>How wide the window frames are, as a fraction of the cabin's half size.</summary>
+		private const float Frames = 0.05f;
+
+		private static void Pod(Piece p, Frame f, Skin skin)
+		{
+			float scale = skin == Skin.Outer ? 1f : skin == Skin.Cabin ? InnerScale : PaneScale;
+			float hw0 = 0.5f * f.PodWidth;
+			float hh0 = 0.5f * f.PodHeight;
+			int last = Rings;
+			if (skin != Skin.Outer)
 			{
 				// The cabin ends at the bulkhead.
-				while (last > noseRings && RingT(last, noseRings, rings) > BulkheadT)
+				while (last > NoseRings && RingT(last) > BulkheadT)
 				{
 					last--;
 				}
 			}
 			int[,] index = new int[last + 1, Around + 1];
 			float[] ts = new float[last + 1];
-			var sides = new float[last + 1, Around + 1];
-			var ups = new float[last + 1, Around + 1];
+			// Each corner's place on the outer skin, as fractions of the cabin, for the glass: all three skins agree on it.
+			var xs = new float[last + 1, Around + 1];
+			var ys = new float[last + 1, Around + 1];
 			for (int i = 0; i <= last; i++)
 			{
-				float t = RingT(i, noseRings, rings);
+				float t = RingT(i);
 				ts[i] = t;
 				Section(f, t, out float hw, out float hh, out _);
 				float radius = 0.5f * (hw + hh) * scale;
+				float[] angles = Angles(f, t);
 				for (int j = 0; j <= Around; j++)
 				{
-					float a = 2f * Mathf.PI * j / Around;
-					Vector3 v = PodPoint(f, t, a, scale, out float side, out float up);
-					sides[i, j] = side;
-					ups[i, j] = up;
-					index[i, j] = p.Vertex(v, new Vector2(v.z / TextureSpan, a * radius / TextureSpan));
+					float a = angles[j];
+					Vector3 o = PodPoint(f, t, a, 1f);
+					xs[i, j] = (o.x - f.PodX) / hw0;
+					ys[i, j] = (o.y - f.CentreY) / hh0;
+					Vector3 v = PodPoint(f, t, a, scale);
+					Vector2 uv = skin == Skin.Panes
+						? new Vector2((v.z + 0.6f * v.x) / GlassSpan, v.y / GlassSpan)
+						: new Vector2(v.z / TextureSpan, a * radius / TextureSpan);
+					index[i, j] = p.Vertex(v, uv);
 				}
 			}
 			for (int i = 0; i < last; i++)
@@ -253,34 +378,42 @@ namespace HalfGripHelicopter
 				float tm = 0.5f * (ts[i] + ts[i + 1]);
 				for (int j = 0; j < Around; j++)
 				{
-					float side = 0.25f * (sides[i, j] + sides[i, j + 1] + sides[i + 1, j] + sides[i + 1, j + 1]);
-					float up = 0.25f * (ups[i, j] + ups[i, j + 1] + ups[i + 1, j] + ups[i + 1, j + 1]);
-					bool glass = Glass(tm, up, side, 0f);
-					bool frame = !glass && Glass(tm, up, side, 0.12f);
+					float x = 0.25f * (xs[i, j] + xs[i, j + 1] + xs[i + 1, j] + xs[i + 1, j + 1]);
+					float y = 0.25f * (ys[i, j] + ys[i, j + 1] + ys[i + 1, j] + ys[i + 1, j + 1]);
+					bool glass = Glass(tm, y, x, 0f);
+					bool frame = !glass && Glass(tm, y, x, Frames);
 					Paint paint;
-					if (inside)
+					switch (skin)
 					{
-						if (glass)
-						{
-							continue;
-						}
-						paint = up < -0.55f ? Paint.Floor : Paint.Wall;
-					}
-					else
-					{
-						paint = glass ? Paint.Glass : frame ? Paint.Metal : Paint.Body;
+						case Skin.Cabin:
+							if (glass)
+							{
+								continue;
+							}
+							paint = y < -0.55f ? Paint.Floor : Paint.Wall;
+							break;
+						case Skin.Panes:
+							if (!glass)
+							{
+								continue;
+							}
+							paint = Paint.Pane;
+							break;
+						default:
+							paint = glass ? Paint.Glass : frame ? Paint.Metal : Paint.Body;
+							break;
 					}
 					int a = index[i, j], b = index[i, j + 1], c = index[i + 1, j], d = index[i + 1, j + 1];
-					// Out from the pod's axis at this ring; the cabin faces the other way, toward the seat.
+					// Out from the pod's axis at this ring; the cabin and the panes face the other way, toward the seat.
 					Vector3 mid = 0.25f * (p.Vertices[a] + p.Vertices[b] + p.Vertices[c] + p.Vertices[d]);
 					Section(f, tm, out _, out _, out float rise);
-					Vector3 axis = new Vector3(f.PodX, f.CentreY + rise, mid.z + p.Pivot.z) - p.Pivot;
+					Vector3 axis = new Vector3(f.PodX, f.CentreY + rise, mid.z);
 					Vector3 outward = mid - axis;
 					if (i == 0 || outward.sqrMagnitude < 1e-8f)
 					{
 						outward += Vector3.forward * 0.5f * outward.magnitude + Vector3.forward * 1e-3f;
 					}
-					if (inside)
+					if (skin != Skin.Outer)
 					{
 						outward = -outward;
 					}
@@ -288,14 +421,17 @@ namespace HalfGripHelicopter
 					p.Tri(paint, a, d, c, outward);
 				}
 			}
+			if (skin == Skin.Panes)
+			{
+				return;
+			}
 			// Close the end: the tail's tip outside, the bulkhead inside (facing forward, into the cabin).
-			Vector3 centre = PodPoint(f, ts[last], 0f, 0f, out _, out _);
+			Vector3 centre = PodPoint(f, ts[last], 0f, 0f);
 			int ci = p.Vertex(centre, new Vector2(centre.x / TextureSpan, centre.y / TextureSpan));
-			Vector3 face = inside ? Vector3.forward : Vector3.back;
+			Vector3 face = skin == Skin.Cabin ? Vector3.forward : Vector3.back;
 			for (int j = 0; j < Around; j++)
 			{
-				int a = index[last, j], b = index[last, j + 1];
-				p.Tri(inside ? Paint.Wall : Paint.Body, ci, a, b, face);
+				p.Tri(skin == Skin.Cabin ? Paint.Wall : Paint.Body, ci, index[last, j], index[last, j + 1], face);
 			}
 		}
 
@@ -306,10 +442,53 @@ namespace HalfGripHelicopter
 			float hh = 0.5f * f.PodHeight;
 			float hw = 0.5f * f.PodWidth;
 			float floorTop = f.CentreY - 0.62f * hh;
-			float front = f.NoseZ - 0.16f * f.PodLength;
 			float back = f.NoseZ - BulkheadT * f.PodLength;
-			// Floor: a flat deck over the curved bottom.
-			Box(p, Paint.Floor, new Vector3(f.PodX, floorTop - 0.04f * hh, 0.5f * (front + back)), new Vector3(1.6f * hw, 0.08f * hh, front - back), Quaternion.identity);
+
+			// The glareshield: a level shelf at the windscreen's bottom edge, from the nose's tip back to the panel, following the
+			// cabin's curve so it stays inside the skin. It closes the nose below the glass, so nothing of the floor shows up front.
+			float shelfY = f.CentreY + WindscreenLow * hh;
+			float shelfEnd = WindscreenEnd + 0.03f;
+			const int steps = 16;
+			int prevL = -1, prevR = -1;
+			for (int k = 0; k <= steps; k++)
+			{
+				float t = shelfEnd * k / steps;
+				float half = HalfWidthAt(f, t, shelfY, 0.9f);
+				float z = f.NoseZ - t * f.PodLength;
+				int l = p.Vertex(new Vector3(f.PodX - half, shelfY, z), new Vector2(-half / TextureSpan, z / TextureSpan));
+				int r = p.Vertex(new Vector3(f.PodX + half, shelfY, z), new Vector2(half / TextureSpan, z / TextureSpan));
+				if (prevL >= 0)
+				{
+					p.Tri(Paint.Wall, prevL, prevR, r, Vector3.up);
+					p.Tri(Paint.Wall, prevL, r, l, Vector3.up);
+				}
+				prevL = l;
+				prevR = r;
+			}
+
+			// The instrument panel on a pedestal in the middle, standing on the shelf's back part and leaning away from the seats, its
+			// face drawn (gauges, radio, lights, switches). It is narrower than the cabin, so the bubble nose shows each side of it.
+			float panelHalf = 0.5f * hw;
+			float zb = f.NoseZ - shelfEnd * f.PodLength;
+			float zt = zb + 0.06f * f.PodLength;
+			float yb = shelfY;
+			float yt = f.CentreY - 0.12f * hh;
+			Vector3 lean = new Vector3(0f, yt - yb, zt - zb);
+			Vector3 toSeat = new Vector3(0f, zt - zb, -(yt - yb)).normalized;
+			float thick = 0.05f * f.PodLength;
+			Vector3 faceMid = new Vector3(f.PodX, 0.5f * (yb + yt), 0.5f * (zb + zt));
+			float tilt = Mathf.Atan2(zt - zb, yt - yb) * Mathf.Rad2Deg;
+			Box(p, Paint.Metal, faceMid - toSeat * (0.5f * thick), new Vector3(2f * panelHalf, lean.magnitude, thick), AboutX(tilt));
+			Vector3 lift = toSeat * 0.004f * f.PodLength;
+			Vector3 side = Vector3.right * (0.94f * panelHalf);
+			Vector3 up = lean * 0.47f;
+			Quad(p, Paint.Panel, faceMid - side - up + lift, faceMid + side - up + lift, faceMid - side + up + lift, faceMid + side + up + lift, toSeat);
+			// A hood over its top edge, against the glare.
+			Box(p, Paint.Metal, new Vector3(f.PodX, yt + 0.015f * hh, zt - 0.012f * f.PodLength), new Vector3(2.04f * panelHalf, 0.025f * hh, 0.04f * f.PodLength), Quaternion.identity);
+			float lowZ = zb;
+
+			// Floor: a flat deck over the curved bottom, from the panel back to the bulkhead.
+			Box(p, Paint.Floor, new Vector3(f.PodX, floorTop - 0.04f * hh, 0.5f * (lowZ + back)), new Vector3(1.6f * hw, 0.08f * hh, lowZ - back), Quaternion.identity);
 			// Two seats: the driver's under the head and one beside it.
 			float seatZ = f.Head.z - 0.03f * f.PodLength;
 			float seatW = 0.62f * hw;
@@ -324,10 +503,162 @@ namespace HalfGripHelicopter
 				float backZ = seatZ - 0.08f * f.PodLength;
 				Box(p, Paint.Seat, new Vector3(sx, seatTop + 0.42f * hh, backZ), new Vector3(seatW, 0.9f * hh, 0.035f * f.PodLength), AboutX(-10f));
 			}
-			// The instrument panel under the windscreen's bottom edge, sloping back toward the seats.
-			float panelZ = f.NoseZ - 0.2f * f.PodLength;
-			float panelTop = f.CentreY - 0.32f * hh;
-			Box(p, Paint.Metal, new Vector3(f.PodX, 0.5f * (panelTop + floorTop), panelZ), new Vector3(1.45f * hw, panelTop - floorTop, 0.05f * f.PodLength), AboutX(18f));
+		}
+
+		/// <summary>A quad with its texture whole across it (0 to 1), facing along <paramref name="facing"/>.</summary>
+		private static void Quad(Piece p, Paint paint, Vector3 bl, Vector3 br, Vector3 tl, Vector3 tr, Vector3 facing)
+		{
+			int a = p.Vertex(bl, new Vector2(0f, 0f));
+			int b = p.Vertex(br, new Vector2(1f, 0f));
+			int c = p.Vertex(tl, new Vector2(0f, 1f));
+			int d = p.Vertex(tr, new Vector2(1f, 1f));
+			p.Tri(paint, a, b, d, facing);
+			p.Tri(paint, a, d, c, facing);
+		}
+
+		// ---- Textures (plain pixels, rows from the bottom; Airframe makes them into point-filtered textures) ----
+
+		/// <summary>The glass texture repeats every this many car units.</summary>
+		internal const float GlassSpan = 2.56f;
+
+		/// <summary>A grey speckle with rivet rows, to tint the inside's walls, floor and seats.</summary>
+		internal static Color32[] Speckle(out int size)
+		{
+			size = 32;
+			System.Random rng = new System.Random(4163270);
+			Color32[] px = new Color32[size * size];
+			for (int i = 0; i < px.Length; i++)
+			{
+				int roll = rng.Next(100);
+				byte g = (byte)(roll < 12 ? 196 : roll < 22 ? 255 : 228);
+				px[i] = new Color32(g, g, g, 255);
+			}
+			for (int y = 0; y < size; y += 8)
+			{
+				for (int x = 2; x < size; x += 4)
+				{
+					px[y * size + x] = new Color32(160, 160, 160, 255);
+				}
+			}
+			return px;
+		}
+
+		/// <summary>The glass seen from inside: a faint blue tint, two hard diagonal glare bands and a few specks, so it reads as glass
+		/// (0.1.3 left it an empty hole). Mostly almost clear.</summary>
+		internal static Color32[] GlassPixels(out int size)
+		{
+			size = 64;
+			System.Random rng = new System.Random(4163);
+			Color32[] px = new Color32[size * size];
+			for (int y = 0; y < size; y++)
+			{
+				for (int x = 0; x < size; x++)
+				{
+					int d = (x + y) % size;
+					byte a = 22;
+					if (d >= 8 && d < 12)
+					{
+						a = 60;
+					}
+					else if (d >= 15 && d < 17)
+					{
+						a = 44;
+					}
+					if (rng.Next(160) == 0)
+					{
+						a = 80;
+					}
+					px[y * size + x] = new Color32(215, 235, 245, a);
+				}
+			}
+			return px;
+		}
+
+		/// <summary>The instrument panel's face: four round gauges, a radio, warning lights and a row of switches on dark grey.</summary>
+		internal static Color32[] PanelPixels(out int w, out int h)
+		{
+			w = 64;
+			h = 24;
+			Color32[] px = new Color32[w * h];
+			Color32 face = new Color32(54, 56, 58, 255);
+			Color32 edge = new Color32(84, 86, 88, 255);
+			Color32 black = new Color32(16, 16, 18, 255);
+			Color32 rim = new Color32(150, 152, 154, 255);
+			Color32 white = new Color32(230, 230, 222, 255);
+			for (int i = 0; i < px.Length; i++)
+			{
+				px[i] = face;
+			}
+			int W = w, H = h;
+			void Set(int x, int y, Color32 c)
+			{
+				if (x >= 0 && y >= 0 && x < W && y < H)
+				{
+					px[y * W + x] = c;
+				}
+			}
+			for (int x = 0; x < w; x++)
+			{
+				Set(x, h - 1, edge);
+				Set(x, 0, black);
+			}
+			// Gauges: two each side of the middle, where the game's own dials do not cover them.
+			int[] gx = { 7, 19, 45, 57 };
+			Color32[] needle = { new Color32(230, 60, 40, 255), white, white, new Color32(240, 170, 40, 255) };
+			for (int g = 0; g < gx.Length; g++)
+			{
+				int cx = gx[g], cy = 14;
+				for (int y = -6; y <= 6; y++)
+				{
+					for (int x = -6; x <= 6; x++)
+					{
+						int r2 = x * x + y * y;
+						if (r2 <= 30)
+						{
+							Set(cx + x, cy + y, r2 >= 22 ? rim : black);
+						}
+					}
+				}
+				Set(cx, cy + 4, white);
+				Set(cx - 4, cy, white);
+				Set(cx + 4, cy, white);
+				int dx = g % 2 == 0 ? 1 : -1;
+				for (int k = 0; k <= 3; k++)
+				{
+					Set(cx + dx * k / 2, cy + k, needle[g]);
+				}
+			}
+			// Radio: a dark window with green digits.
+			for (int y = 15; y <= 19; y++)
+			{
+				for (int x = 27; x <= 36; x++)
+				{
+					Set(x, y, black);
+				}
+			}
+			foreach (int x in new[] { 28, 29, 31, 32, 34, 35 })
+			{
+				Set(x, 17, new Color32(90, 220, 110, 255));
+				Set(x, 18, new Color32(60, 160, 80, 255));
+			}
+			// Warning lights.
+			Color32[] lights = { new Color32(220, 50, 40, 255), new Color32(240, 170, 40, 255), new Color32(80, 200, 90, 255) };
+			for (int l = 0; l < 3; l++)
+			{
+				Set(28 + 3 * l, 12, lights[l]);
+				Set(29 + 3 * l, 12, lights[l]);
+				Set(28 + 3 * l, 11, lights[l]);
+				Set(29 + 3 * l, 11, lights[l]);
+			}
+			// A row of toggle switches along the bottom.
+			for (int x = 3; x < w - 2; x += 4)
+			{
+				Set(x, 3, black);
+				Set(x, 4, black);
+				Set(x, 5, rim);
+				Set(x, 6, white);
+			}
+			return px;
 		}
 
 		// ---- Outside ----

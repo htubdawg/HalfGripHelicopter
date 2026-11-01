@@ -19,6 +19,11 @@ namespace HalfGripHelicopter
 				Model.Sheet(args.Length > 1 ? args[1] : "model.png");
 				return 0;
 			}
+			if (args.Length > 0 && args[0] == "--close")
+			{
+				Model.Close(args.Length > 1 ? args[1] : "close.png");
+				return 0;
+			}
 			string path = args.Length > 0 ? args[0] : "preview.png";
 			Canvas sheet = new Canvas(200, 90);
 			sheet.Rect(0, 0, sheet.Width, sheet.Height, new Color32(58, 52, 50, 255));

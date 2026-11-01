@@ -19,10 +19,10 @@ cockpit's wheel and shifter with a stick, a collective and a throttle, and flies
 | `HeliItem.cs` | The item: a clone of chassis `aero_1` (or any chassis) with stock numbers, no downforce, a drawn icon; `Fitted`/`Current` read `PlayerLoadout` |
 | `Lock.cs` | Fits alone: `InventorySlot.OnDrop` (refuse others / clear others), `LoadoutSpawner.Awake` (cut the loadout to the Helicopter, stats again), `LoadoutRefit.Swap` (live refits); `CarLink.FixedUpdate` skipped while flying; no `ACH_BIG_AIR`; the Open World's `ShifterHand` patched by name |
 | `HeliDriver.cs` | Every 0.25 s: the player's `CarLink` + item fitted → builds cockpit, flight, rotor; takes them off when not; `DriveCar` in place of the car's driving (brakes when parked, `engineIndicator` = rotor speed) |
-| `Cockpit.cs` | Hides wheel, all shifters, handbrake (renderers + `InteriorCollider`s off, objects alive, re-hidden every 0.5 s); stick = `DoubleLinearObject` (spring off while held, on when let go, right click toggles `frozen`), levers = `LinearObject` with no spring; placed and sized from the hidden parts' bounds and the dash's pixel size; shaft redrawn in whole pixels |
+| `Cockpit.cs` | Hides wheel, all shifters, handbrake (renderers + `InteriorCollider`s off, objects alive, re-hidden every 0.5 s; the wheel's lock-button sprites every frame, since `NSteeringWheel.Update` turns one back on); stick = `DoubleLinearObject` (spring off while held, on when let go, right click toggles `frozen`), levers = `LinearObject` with no spring; placed and sized from the hidden parts' bounds and the dash's pixel size; shaft redrawn in whole pixels |
 | `Flight.cs` | The flight model (see its summary): thrust `m g 2 C rpm²`, climb-rate damping `g/ClimbRate`, attitude hold (5 rad/s, critically damped), yaw from the stick + tail fin, drag balanced at `TopSpeed` |
-| `Shape.cs` | The helicopter's geometry as plain triangles per `Paint` (Unity's managed structs only, so `tools/preview` draws it too): `Measure` sizes the pod from the car (length >= 0.62 car lengths, height 0.4-0.5 of the length, head 57% up and 40% back), `Build` gives the outer skin + outside parts, the cabin (inner skin facing in with holes at the glass, floor, seats, panel), the main and tail rotors. No `Quaternion.Euler` (native; use `AboutX`/`AboutY`) |
-| `Airframe.cs` | Hides the car's skin models (`CarSkinController.carModels`) and wheel meshes (re-hidden every 0.5 s, shown again on removal); turns `Shape`'s pieces into meshes on the body's layer, one URP Lit material per paint, `_Cull` Back, speckle texture inside; the head is the car's child camera tagged MainCamera; the cabin is always drawn except for the camera named `RearViewCamera` (`beginCameraRendering`); rotors spin with `Flight.Rpm` |
+| `Shape.cs` | The helicopter's geometry as plain triangles per `Paint` (Unity's managed structs only, so `tools/preview` draws it too): `Measure` sizes the pod from the car (length >= 0.62 car lengths, height 0.4-0.5 of the length, head 57% up and 40% back), `Build` gives the outer skin + outside parts, the cabin (inner skin facing in with holes at the glass, glareshield shelf, panel pedestal with a drawn face, floor, seats), the panes (glass seen from inside), the main and tail rotors. Windows are cut at level heights; every edge level owns a mesh column on every ring (`Angles`), so edges are clean. Pixel arrays for the speckle, glass and panel textures. No `Quaternion.Euler` (native; use `AboutX`/`AboutY`) |
+| `Airframe.cs` | Hides the car's skin models (`CarSkinController.carModels`) and wheel meshes (re-hidden every 0.5 s, shown again on removal); turns `Shape`'s pieces into meshes on the body's layer, one URP Lit material per paint, `_Cull` Back, speckle and panel textures; the panes in the game's `Sprite-Unlit-Default` (alpha blended, always in the build, both sides; hidden from outside by the opaque outer glass); the head is the car's child camera tagged MainCamera; the cabin and panes are always drawn except for the camera named `RearViewCamera` (`beginCameraRendering`); rotors spin with `Flight.Rpm` |
 | `Art.cs` | `Canvas` (pixel drawing) and the pictures: icon, grip, boot, slot, handles |
 
 ## Rules that matter
@@ -50,7 +50,8 @@ cockpit's wheel and shifter with a stick, a collective and a throttle, and flies
   Look at it after any art change.
 - Model: `dotnet run -c Release --project tools/preview -p:Refs=<halfgriprefs> -- --model docs/model.png` draws `Shape` with back-face
   culling and depth, from outside and from the head (ahead, left, right, the mirror back), for the game's car and a smaller one.
-  **Look at it after any change to the shape**, before the owner does.
+  **Look at it after any change to the shape**, before the owner does. `-- --close <png>` draws the seat view and the nose large
+  (`docs/close.png`).
 - In game (the owner tests): copy `Helicopter/` to `<game>\BepInEx\HalfGripMods\`, set `Debug.VerboseLog=true`, read
   `BepInEx\LogOutput.log` (look for `cockpit built`, `airframe built`, `on the car`, `linked to the Open World's garages`; a failure logs `could not put
   the helicopter on the car` once a race).
@@ -72,9 +73,17 @@ cockpit's wheel and shifter with a stick, a collective and a throttle, and flies
   nose, cabin, tail cone into the boom, engine housing), never rounder than 2:1; the cabin always drawn (hidden only for the
   rear-view camera); roof, pillars, floor, seats, panel inside. Checked with `tools/preview --model` (`docs/model.png`), compiles;
   **not tested in game.**
-- **Waiting on the owner:** in-game test of 0.1.3: the outside, the view from the seat, the mirror; the log line `airframe built on
-  body ... head ... pod ...` (gives the real car measures to put into `Model.Car`; `(guessed)` means the camera was not found).
-  Earlier checks still open: controls placement and grab, lift-off at about half collective, hover, landing, the garage on dropping
-  the collective, other items refused.
+- **0.1.3 test** (owner, screenshots): cabin seen from the seat, exterior fine; but a big dark spike ahead (the cabin floor's last
+  strip running into the nose tip under the glass, which was cut by angle round each ring), messy glass edges at the front, the
+  windscreen an empty hole, and two grey slanted marks above the dials (the wheel's lock-button sprites, which
+  `NSteeringWheel.Update` turns back on every frame).
+- **0.1.4** on `claude/practical-thompson-8lxknd`: windows cut at level heights with their own mesh columns (clean edges, no chin
+  bubble); the windscreen's bottom lowered (bubble nose) with a grey glareshield shelf; a panel pedestal with gauges, radio,
+  lights and switches; tinted glass with glare bands seen from inside; the lock buttons hidden every frame. Checked with
+  `--model` and `--close`, compiles; **not tested in game.**
+- **Waiting on the owner:** in-game test of 0.1.4: the view from the seat (no spike, panel, glass tint), the nose from outside,
+  the grey marks gone, the mirror; and the log line `airframe built on body ... head ... pod ...` (the real car measures for
+  `Model.Car`). Earlier checks still open: controls placement and grab, lift-off at about half collective, hover, landing, the
+  garage on dropping the collective, other items refused.
 - **Unknowns to watch:** the controls' placement and size on each car (from the hidden parts' bounds); the Open World's garage UI may
   still show items as chosen that the lock keeps off; run boons and a starting kit's permanent stats are not removed.

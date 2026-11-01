@@ -489,7 +489,28 @@ namespace HalfGripHelicopter
 				nextHide = Time.unscaledTime + 0.5f;
 				Hide();
 			}
+			HideLockButtons();
 			DrawShaft();
+		}
+
+		/// <summary>
+		/// The wheel's steer-lock button sprites (on its spokes), off every frame: <see cref="NSteeringWheel"/>'s Update turns one of
+		/// them back on each frame, so the half-second <see cref="Hide"/> left them showing as two slanted grey marks above the dials.
+		/// </summary>
+		private void HideLockButtons()
+		{
+			if (link == null || link.sw == null)
+			{
+				return;
+			}
+			if (link.sw.lockButton != null)
+			{
+				link.sw.lockButton.enabled = false;
+			}
+			if (link.sw.lockButtonPressed != null)
+			{
+				link.sw.lockButtonPressed.enabled = false;
+			}
 		}
 
 		/// <summary>The shaft from the foot to the grip, in whole dash pixels; redrawn only when the grip has moved a pixel.</summary>

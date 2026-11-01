@@ -10,8 +10,9 @@ namespace HalfGripHelicopter
 	/// plain Lit materials, one per <see cref="Paint"/>. Its shape is worked out from the car's body bounds, the wheels' bottom and the
 	/// driver's head (the car's camera tagged MainCamera, which is also the cockpit view's world camera), so that view is from inside
 	/// the cabin.
-	/// <para>The cabin is drawn for every camera: it sits inside the opaque outer skin, so from outside it can't be seen. The one
-	/// exception is the rear-view mirror's camera, which sits by the head and would see the bulkhead; it skips the cabin. (0.1.2 drew
+	/// <para>The cabin and the panes (the glass seen from inside) are drawn for every camera: they sit inside the opaque outer skin, so
+	/// from outside they can't be seen. The one exception is the rear-view mirror's camera, which sits by the head and would see the
+	/// bulkhead; it skips them. (0.1.2 drew
 	/// the cabin only for a camera it recognised as the cockpit's, and in the game that never matched, so the inside was empty.)</para>
 	/// <para>The body is the car's active skin model (<see cref="CarSkinController.carModels"/>; the Dacia Body mod swaps its meshes but
 	/// keeps these objects) and the wheels' visual children; they are hidden again every half second, since a refit or a skin change
@@ -31,14 +32,13 @@ namespace HalfGripHelicopter
 		private Flight flight;
 		private Transform main;
 		private Transform tail;
-		private Renderer cabin;
+		private readonly List<Renderer> inside = new List<Renderer>();
 		private float angle;
 		private float nextHide;
 		private Shader lit;
 		private int partLayer;
 		private bool headFound;
 		private bool hooked;
-		private Texture2D speckle;
 		private readonly List<Renderer> hidden = new List<Renderer>();
 		private readonly List<Object> owned = new List<Object>();
 		private readonly Dictionary<Paint, Material> materials = new Dictionary<Paint, Material>();
@@ -180,9 +180,9 @@ namespace HalfGripHelicopter
 				{
 					tail = t;
 				}
-				else if (piece.Name == "Cabin")
+				else if (piece.Name == "Cabin" || piece.Name == "Panes")
 				{
-					cabin = t.GetComponent<Renderer>();
+					inside.Add(t.GetComponent<Renderer>());
 				}
 			}
 			RenderPipelineManager.beginCameraRendering += OnCamera;
@@ -213,13 +213,17 @@ namespace HalfGripHelicopter
 			return new Vector3(b.center.x, b.max.y - 0.1f * b.size.y, b.center.z - 0.03f * b.size.z);
 		}
 
-		/// <summary>The rear-view mirror's camera sits by the head, inside the cabin: it skips the cabin so the mirror shows what is
-		/// behind. Every other camera draws it (from outside it is hidden by the outer skin).</summary>
+		/// <summary>The rear-view mirror's camera sits by the head, inside the cabin: it skips the cabin and the panes so the mirror
+		/// shows what is behind. Every other camera draws them (from outside they are hidden by the outer skin).</summary>
 		private void OnCamera(ScriptableRenderContext context, Camera cam)
 		{
-			if (cabin != null)
+			bool show = cam == null || cam.name != "RearViewCamera";
+			foreach (Renderer r in inside)
 			{
-				cabin.enabled = cam == null || cam.name != "RearViewCamera";
+				if (r != null)
+				{
+					r.enabled = show;
+				}
 			}
 		}
 
@@ -234,6 +238,13 @@ namespace HalfGripHelicopter
 			}
 			mesh.SetVertices(piece.Vertices);
 			mesh.SetUVs(0, piece.Uvs);
+			// White vertex colours: the sprite shader the panes use multiplies by them.
+			Color32[] white = new Color32[piece.Vertices.Count];
+			for (int i = 0; i < white.Length; i++)
+			{
+				white[i] = new Color32(255, 255, 255, 255);
+			}
+			mesh.colors32 = white;
 			List<Material> mats = new List<Material>();
 			mesh.subMeshCount = piece.Triangles.Count;
 			int sub = 0;
@@ -276,70 +287,97 @@ namespace HalfGripHelicopter
 			{
 				return m;
 			}
-			if (lit == null)
+			if (paint == Paint.Pane)
+			{
+				m = PaneMaterial();
+			}
+			else if (lit != null)
+			{
+				m = new Material(lit);
+				Color colour = paint == Paint.Panel ? Color.white : ColourOf(paint);
+				if (m.HasProperty("_BaseColor"))
+				{
+					m.SetColor("_BaseColor", colour);
+				}
+				if (m.HasProperty("_Smoothness"))
+				{
+					m.SetFloat("_Smoothness", paint == Paint.Glass ? 0.7f : 0.2f);
+				}
+				// Back faces culled, always: the glass is opaque only from outside because its inside faces are never drawn, and
+				// the cabin's walls only from inside.
+				if (m.HasProperty("_Cull"))
+				{
+					m.SetFloat("_Cull", (float)CullMode.Back);
+				}
+				Texture2D tex = null;
+				if (paint == Paint.Wall || paint == Paint.Floor || paint == Paint.Seat)
+				{
+					tex = Texture("HelicopterSpeckle", Shape.Speckle(out int n), n, n);
+				}
+				else if (paint == Paint.Panel)
+				{
+					tex = Texture("HelicopterPanel", Shape.PanelPixels(out int w, out int h), w, h);
+					tex.wrapMode = TextureWrapMode.Clamp;
+				}
+				if (tex != null && m.HasProperty("_BaseMap"))
+				{
+					m.SetTexture("_BaseMap", tex);
+				}
+			}
+			if (m == null)
 			{
 				return null;
 			}
-			Color colour = ColourOf(paint);
-			m = new Material(lit);
 			m.name = "Helicopter" + paint;
 			m.hideFlags = HideFlags.HideAndDontSave;
-			if (m.HasProperty("_BaseColor"))
-			{
-				m.SetColor("_BaseColor", colour);
-			}
-			if (m.HasProperty("_Smoothness"))
-			{
-				m.SetFloat("_Smoothness", paint == Paint.Glass ? 0.7f : 0.2f);
-			}
-			// Back faces culled, always: the glass is opaque only from outside because its inside faces are never drawn, and the
-			// cabin's walls only from inside.
-			if (m.HasProperty("_Cull"))
-			{
-				m.SetFloat("_Cull", (float)CullMode.Back);
-			}
-			if ((paint == Paint.Wall || paint == Paint.Floor || paint == Paint.Seat) && m.HasProperty("_BaseMap"))
-			{
-				m.SetTexture("_BaseMap", Speckle());
-			}
 			materials[paint] = m;
 			owned.Add(m);
 			return m;
 		}
 
-		/// <summary>A grey speckle, point filtered, to tint the inside's walls and floor (flat colour reads as unfinished).</summary>
-		private Texture2D Speckle()
+		/// <summary>
+		/// The glass seen from inside: the game's own unlit sprite shader (alpha blended, in every race's dash and world, so never
+		/// stripped from the build), with the faint glass texture. A transparent Lit material would need a shader variant the game
+		/// may not ship. The sprite shader draws both sides; from outside the opaque outer glass is in front and hides it.
+		/// </summary>
+		private Material PaneMaterial()
 		{
-			if (speckle != null)
+			const string name = "Universal Render Pipeline/2D/Sprite-Unlit-Default";
+			Shader shader = null;
+			foreach (Shader s in Resources.FindObjectsOfTypeAll<Shader>())
 			{
-				return speckle;
-			}
-			const int size = 32;
-			speckle = new Texture2D(size, size, TextureFormat.RGBA32, false);
-			speckle.name = "HelicopterSpeckle";
-			speckle.hideFlags = HideFlags.HideAndDontSave;
-			speckle.filterMode = FilterMode.Point;
-			speckle.wrapMode = TextureWrapMode.Repeat;
-			System.Random rng = new System.Random(4163270);
-			Color32[] px = new Color32[size * size];
-			for (int i = 0; i < px.Length; i++)
-			{
-				int roll = rng.Next(100);
-				byte g = (byte)(roll < 12 ? 196 : roll < 22 ? 255 : 228);
-				px[i] = new Color32(g, g, g, 255);
-			}
-			// Rivet rows every 8 texels across the panels.
-			for (int y = 0; y < size; y += 8)
-			{
-				for (int x = 2; x < size; x += 4)
+				if (s != null && s.name == name)
 				{
-					px[y * size + x] = new Color32(160, 160, 160, 255);
+					shader = s;
+					break;
 				}
 			}
-			speckle.SetPixels32(px);
-			speckle.Apply(false, true);
-			owned.Add(speckle);
-			return speckle;
+			if (shader == null)
+			{
+				shader = Shader.Find(name);
+			}
+			if (shader == null)
+			{
+				Mod.Log.LogWarning("Helicopter: no sprite shader for the glass, so the windows are left clear.");
+				return null;
+			}
+			Material m = new Material(shader);
+			m.mainTexture = Texture("HelicopterGlass", Shape.GlassPixels(out int n), n, n);
+			return m;
+		}
+
+		/// <summary>A point-filtered, repeating texture from plain pixels (rows from the bottom).</summary>
+		private Texture2D Texture(string name, Color32[] px, int w, int h)
+		{
+			Texture2D t = new Texture2D(w, h, TextureFormat.RGBA32, false);
+			t.name = name;
+			t.hideFlags = HideFlags.HideAndDontSave;
+			t.filterMode = FilterMode.Point;
+			t.wrapMode = TextureWrapMode.Repeat;
+			t.SetPixels32(px);
+			t.Apply(false, false);
+			owned.Add(t);
+			return t;
 		}
 
 		/// <summary>The URP Lit shader, from a material already in the car (always in the build), or by name.</summary>
