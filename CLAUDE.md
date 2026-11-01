@@ -116,8 +116,7 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 ## Status (keep current)
 
-**Now:** 0.2.1 on `claude/practical-thompson-8lxknd` (restarted from `main` after PR #2, the README video, was merged), PR to be
-opened. Owner's asks after testing 0.2.0 (screenshot: Open World, GPS fitted): (1) two small lights left over above the old
+**Now:** 0.2.1 on `claude/practical-thompson-8lxknd` (restarted from `main` after PR #2, the README video, was merged), PR #3. Owner's asks after testing 0.2.0 (screenshot: Open World, GPS fitted): (1) two small lights left over above the old
 shifter: the car's money and enemy-targeting lights (`DollarSign`, `EnemyTargetingLED`), now hidden with the other read-outs; (2)
 the "AirTime" combo line on the screen: `Lock.NoAirTime` skips it while flying; (3) the GPS stood over the panel's drawn gauges:
 the panel's face now gets a recessed bay (`Panel.Bay`, a `Zone` with `Mount`) where the GPS falls, worked out like the controls'
