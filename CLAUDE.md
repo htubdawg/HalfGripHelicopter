@@ -1,6 +1,6 @@
 # HalfGripHelicopter
 
-A Half Grip (Steam app 4163270, Unity, Windows) mod: a chassis item, **Helicopter** (id `helicopter.heli`), that fits alone, replaces the
+A Half Grip (Steam app 4163270, Unity, Windows) mod: a chassis item, **Helicopter** (id `helicopter.heli`), that fits alone (but for guns and the MiniMap GPS), replaces the
 cockpit's wheel and shifter with a stick, a collective and a throttle, and flies the car. Made mainly for the Open World mod
 (`htubdawg/HalfGripOpenWorld`). Current release: see `Helicopter/mod.json`.
 
@@ -30,7 +30,7 @@ changes the state of things, this file must already say everything needed to car
 |---|---|
 | `Mod.cs` | Config, registers the item and patches, the persistent `HeliDriver` object |
 | `HeliItem.cs` | The item: a clone of chassis `aero_1` (or any chassis) with stock numbers, no downforce, a drawn icon; `Fitted`/`Current` read `PlayerLoadout` |
-| `Lock.cs` | Fits alone: `InventorySlot.OnDrop` (refuse others / clear others), `LoadoutSpawner.Awake` (cut the loadout to the Helicopter, stats again), `LoadoutRefit.Swap` (live refits); `CarLink.FixedUpdate` skipped while flying; no `ACH_BIG_AIR`; the Open World's `ShifterHand` patched by name |
+| `Lock.cs` | Fits alone but for `Lock.Allowed` (any `UpgradeCategory.GUN`, and the MiniMap's GPS by its id `minimap.gps` only): `InventorySlot.OnDrop` (refuse others / clear others), `LoadoutSpawner.Awake` (cut the loadout to the allowed items, stats again from them), `LoadoutRefit.Swap` (live refits); `CarLink.FixedUpdate` skipped while flying; no `ACH_BIG_AIR`; the Open World's `ShifterHand` patched by name |
 | `HeliDriver.cs` | Every 0.25 s: the player's `CarLink` + item fitted → builds cockpit, flight, rotor; takes them off when not; `DriveCar` in place of the car's driving (brakes when parked, `engineIndicator` = rotor speed) |
 | `Cockpit.cs` | Hides wheel, all shifters, handbrake (renderers + `InteriorCollider`s off, objects alive, re-hidden every 0.5 s; the wheel's lock-button sprites every frame, since `NSteeringWheel.Update` turns one back on); stick = `DoubleLinearObject` (spring off while held, on when let go, right click toggles a lock that leaves the spring off on release, not the game's `frozen`, so a locked stick still moves while held), levers = `LinearObject` with no spring; placed and sized from the hidden parts' bounds and the dash's pixel size; shaft redrawn in whole pixels |
 | `Flight.cs` | The flight model (see its summary): thrust `m g 2 C rpm²`, climb-rate damping `g/ClimbRate`, attitude hold (critically damped at `TiltResponse` rad/s, default 3, turning capped at `TiltRate` deg/s, default 30), yaw from the stick + tail fin, drag balanced at `TopSpeed` |
@@ -44,7 +44,7 @@ changes the state of things, this file must already say everything needed to car
 - The item id `helicopter.heli` is saved in runs: never change it.
 - **No keybindings** (owner): everything is worked by the cockpit hand. W/S do nothing while flying.
 - The stick springs to the middle when let go (the helicopter levels and hovers); right click locks it: still moved by the hand, but it stays where it is let go. The levers keep their place.
-- Fits alone: keep every route closed (garage slot, race spawn, live refit). Do not invent other routes around `LoadoutRefit.Swap`.
+- Fits alone but for guns and the GPS (owner, 0.2.0; `Lock.Allowed` is the one list): keep every route closed (garage slot, race spawn, live refit). Do not invent other routes around `LoadoutRefit.Swap`.
 - Pixel look: flat palette colours, point filtering, whole dash pixels; no rotated smooth sprites (the shaft is redrawn instead).
 - The flight model works from the car's mass, `Physics.gravity` and the config only: no constants that assume a world scale.
 - C# 10, netstandard2.1. Tabs, `///` summaries that explain *why*, `Mod.Info` for anything but warnings (only with
@@ -109,12 +109,16 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 ## Status (keep current)
 
-**Now:** 0.1.9 on `claude/practical-thompson-8lxknd`, PR #1 to `main` opened at the owner's request (they asked to prepare it for
-merging). 0.1.9 (owner's asks after 0.1.8): the right-click lock no longer uses `frozen` (which stopped the hand moving the stick);
+**Now:** 0.2.0 on `claude/practical-thompson-8lxknd`, PR #1 to `main` opened at the owner's request (they asked to prepare it for
+merging). 0.2.0 (owner): guns (any `UpgradeCategory.GUN`) and the MiniMap's GPS (id `minimap.gps` only, not other MEDIUM items) may
+go on with the Helicopter, on every route (`Lock.Allowed`). Checked in the Forest dump: the guns are prebuilt in `CarInterior` high
+up (y about 8, switched by `GunLoadoutActivator` from `PlayerStats.gun`), far from the stick and levers and not among the hidden
+read-outs; their outside parts go on `ExteriorSocket`s beside the body model, which `Airframe` doesn't hide (they may sit inside the
+pod). The GPS goes in module slot SLOT1/2, right of the old shifter. Compiles; **not tested in game.** 0.1.9 (owner's asks after 0.1.8): the right-click lock no longer uses `frozen` (which stopped the hand moving the stick);
 it only keeps the spring off on release, so a locked stick still moves while grabbed and stays where let go. Pitch/bank was too
 quick: the attitude spring's frequency is now `Flight.TiltResponse` (default 3, was a fixed 5) and its turning rate is capped at
 `Flight.TiltRate` (default 30 deg/s); new keys, so no migration. Compiles; **not tested in game.** **Next step:** the owner's test
-of 0.1.9 (lock behaviour, pitch feel; tune the defaults from it) and of 0.1.8 (gate lean: the `panel fitted ... gate leaning L / R`
+of 0.2.0 (a gun and the GPS fitted with it, shown and working; other items still refused) and 0.1.9 (lock behaviour, pitch feel; tune the defaults from it) and of 0.1.8 (gate lean: the `panel fitted ... gate leaning L / R`
 log line, L and R about -0.1), then the flight checks still open (below).
 
 History:

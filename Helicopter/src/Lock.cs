@@ -10,7 +10,8 @@ using UnityEngine.EventSystems;
 namespace HalfGripHelicopter
 {
 	/// <summary>
-	/// The Helicopter fits alone. Every way an item reaches the car is closed while it is fitted:
+	/// The Helicopter fits alone, but for guns and the MiniMap mod's GPS (<see cref="Allowed"/>, the owner's choice after 0.1.9).
+	/// Every way another item reaches the car is closed while it is fitted:
 	/// <list type="bullet">
 	/// <item>the garage's slots (<see cref="InventorySlot.OnDrop"/>): fitting the Helicopter puts everything else back in the hold, and
 	/// nothing else can go in while it is there;</item>
@@ -22,18 +23,37 @@ namespace HalfGripHelicopter
 	/// </summary>
 	internal static class Lock
 	{
-		/// <summary>The race's loadout cut down to the Helicopter, its stats from it alone. Called as the race spawns the loadout.</summary>
+		/// <summary>The MiniMap mod's GPS (its saved item id): that one item only, not every item of its kind.</summary>
+		private const string GpsId = "minimap.gps";
+
+		/// <summary>
+		/// What may go on beside the Helicopter: the Helicopter itself, any gun (its own category, fired from the cockpit's module slots
+		/// and the car's exterior sockets, which the airframe leaves alone) and the GPS.
+		/// </summary>
+		internal static bool Allowed(UpgradeComponent u)
+		{
+			return u != null && (HeliItem.Is(u) || u.upgradeCategory == UpgradeCategory.GUN || u.id == GpsId);
+		}
+
+		/// <summary>The race's loadout cut down to what may go with the Helicopter, its stats from those alone. Called as the race spawns the loadout.</summary>
 		internal static void Enforce()
 		{
-			if (!HeliItem.Fitted || PlayerLoadout.Equipped.Count <= 1)
+			if (!HeliItem.Fitted)
 			{
 				return;
 			}
-			UpgradeComponent heli = HeliItem.Current;
-			Mod.Info("Helicopter: fitted with " + (PlayerLoadout.Equipped.Count - 1) + " other item(s), which stay off: " + string.Join(", ", PlayerLoadout.Equipped.Where(u => !HeliItem.Is(u)).Select(u => u.id).ToArray()));
+			List<UpgradeComponent> kept = PlayerLoadout.Equipped.Where(Allowed).ToList();
+			if (kept.Count == PlayerLoadout.Equipped.Count)
+			{
+				return;
+			}
+			Mod.Info("Helicopter: fitted with " + (PlayerLoadout.Equipped.Count - kept.Count) + " other item(s), which stay off: " + string.Join(", ", PlayerLoadout.Equipped.Where(u => !Allowed(u)).Select(u => u != null ? u.id : "?").ToArray()));
 			PlayerStats.ResetAllUpgrades();
-			heli.Apply();
-			PlayerLoadout.Set(new[] { heli });
+			foreach (UpgradeComponent u in kept)
+			{
+				u.Apply();
+			}
+			PlayerLoadout.Set(kept);
 		}
 
 		/// <summary>The garage's draggable item the Helicopter sits as, in any slot, other than <paramref name="except"/>.</summary>
@@ -52,7 +72,7 @@ namespace HalfGripHelicopter
 			return false;
 		}
 
-		/// <summary>Puts every fitted item but the Helicopter back in the hold, the way a slot puts back the item a new one replaces.</summary>
+		/// <summary>Puts every fitted item but the Helicopter, guns and the GPS back in the hold, the way a slot puts back the item a new one replaces.</summary>
 		internal static void ClearOtherSlots(DraggableItem heli)
 		{
 			InventoryHold hold = UnityEngine.Object.FindAnyObjectByType<InventoryHold>();
@@ -65,7 +85,7 @@ namespace HalfGripHelicopter
 			{
 				foreach (DraggableItem d in slot.GetComponentsInChildren<DraggableItem>())
 				{
-					if (d == heli || HeliItem.Is(d.Upgrade))
+					if (d == heli || Allowed(d.Upgrade))
 					{
 						continue;
 					}
@@ -151,7 +171,7 @@ namespace HalfGripHelicopter
 		}
 	}
 
-	/// <summary>The garage: the Helicopter clears the other slots, and nothing goes in beside it.</summary>
+	/// <summary>The garage: the Helicopter clears the other slots, and nothing but guns and the GPS goes in beside it.</summary>
 	[HarmonyPatch(typeof(InventorySlot), nameof(InventorySlot.OnDrop))]
 	internal static class SlotDrop
 	{
@@ -160,7 +180,7 @@ namespace HalfGripHelicopter
 			try
 			{
 				DraggableItem d = eventData != null && eventData.pointerDrag != null ? eventData.pointerDrag.GetComponent<DraggableItem>() : null;
-				if (d == null || d.Upgrade == null || HeliItem.Is(d.Upgrade) || __instance.category != d.upgradeCategory)
+				if (d == null || d.Upgrade == null || Lock.Allowed(d.Upgrade) || __instance.category != d.upgradeCategory)
 				{
 					return true;
 				}
@@ -170,7 +190,7 @@ namespace HalfGripHelicopter
 				}
 				d.SnapToParent(d.ReturnParent);
 				MenuSounds.Play(MenuSound.PutDown);
-				Mod.Info("Helicopter: refused '" + d.Upgrade.id + "' (the Helicopter fits alone).");
+				Mod.Info("Helicopter: refused '" + d.Upgrade.id + "' (only guns and the GPS go with the Helicopter).");
 				return false;
 			}
 			catch (Exception e)
@@ -214,7 +234,7 @@ namespace HalfGripHelicopter
 		}
 	}
 
-	/// <summary>A live refit: nothing else goes on with the Helicopter, and the Helicopter takes the rest off.</summary>
+	/// <summary>A live refit: nothing but guns and the GPS goes on with the Helicopter, and the Helicopter takes the rest off.</summary>
 	[HarmonyPatch(typeof(LoadoutRefit), nameof(LoadoutRefit.Swap))]
 	internal static class RefitAlone
 	{
@@ -228,13 +248,13 @@ namespace HalfGripHelicopter
 				{
 					return;
 				}
-				if (on != null && !HeliItem.Is(on))
+				if (on != null && !Lock.Allowed(on))
 				{
-					Mod.Info("Helicopter: refit refused '" + on.id + "' (the Helicopter fits alone).");
+					Mod.Info("Helicopter: refit refused '" + on.id + "' (only guns and the GPS go with the Helicopter).");
 					on = null;
 				}
-				loadout = new[] { heli };
-				if (on != null)
+				loadout = list.Where(Lock.Allowed).ToList();
+				if (on != null && HeliItem.Is(on))
 				{
 					// The Helicopter going on: take off what is already fitted.
 					LoadoutSpawner spawner = Rig.First<LoadoutSpawner>();
@@ -242,7 +262,7 @@ namespace HalfGripHelicopter
 					{
 						foreach (UpgradeSpawn s in spawner.Fitted.ToList())
 						{
-							if (s.upgrade != null && !HeliItem.Is(s.upgrade))
+							if (s.upgrade != null && !Lock.Allowed(s.upgrade))
 							{
 								spawner.Swap(s.upgrade, null);
 							}

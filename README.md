@@ -1,6 +1,6 @@
 # HalfGripHelicopter
 
-**Version 0.1.9** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
+**Version 0.2.0** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
 
 A chassis item, **Helicopter**, that turns your car into a helicopter. Made for the
 [Open World](https://github.com/htubdawg/HalfGripOpenWorld) mod, but it works in any race.
@@ -9,8 +9,8 @@ A chassis item, **Helicopter**, that turns your car into a helicopter. Made for 
 
 ## What it does
 
-- **It fits alone.** Put the Helicopter in the chassis slot and everything else goes back in the hold. Nothing else can go in while
-  it's there. The same holds for a refit in the Open World's garages and for a saved loadout.
+- **It fits with guns only.** Put the Helicopter in the chassis slot and everything else goes back in the hold, except guns and the
+  [MiniMap](https://github.com/htubdawg/HalfGripMiniMap) mod's GPS. Nothing else can go in while it's there. The same holds for a refit in the Open World's garages and for a saved loadout.
 - **New cockpit.** The steering wheel, shifter and handbrake are gone, and so are the car's speed and rev dials, gear box and
   rear-view mirror (the board at the top right stays). In their place:
   - **Stick** (where the wheel was, a big grip standing up from the floor): grab it and push. Forward/back pitches the nose, left/right banks and turns. Let go and it

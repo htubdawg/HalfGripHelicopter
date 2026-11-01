@@ -82,7 +82,7 @@ namespace HalfGripHelicopter
 			}
 			ChassisUpgrade made = ctx.Items.Clone(basis, Id);
 			made.description = "Helicopter\n<color=#7e7e7e>The roads are optional</color>";
-			made.interaction = "Fits alone: everything else comes off. Throttle up, raise the collective past half, fly with the stick (right click holds it)";
+			made.interaction = "Fits with guns and the GPS only: everything else comes off. Throttle up, raise the collective past half, fly with the stick (right click locks it)";
 			made.secondaryDescription = "Takes the wheel and the shifter out. In the Open World, land in a garage, drop the collective to the bottom and let go to open it.";
 			made.cost = Cost;
 			made.tier = ItemTier.RaceSpec;
