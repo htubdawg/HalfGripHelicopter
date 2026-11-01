@@ -109,8 +109,9 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 ## Status (keep current)
 
-**Now:** 0.2.0 on `claude/practical-thompson-8lxknd`, PR #1 to `main` opened at the owner's request (they asked to prepare it for
-merging). 0.2.0 (owner): guns (any `UpgradeCategory.GUN`) and the MiniMap's GPS (id `minimap.gps` only, not other MEDIUM items) may
+**Now:** 0.2.0 released (PR #1 merged to `main`). The README links the owner's showcase video
+(https://www.youtube.com/watch?v=4XyWdDLQcCk) as a thumbnail under the intro; that change is on `claude/practical-thompson-8lxknd`,
+restarted from `main`, no PR yet. 0.2.0 (owner): guns (any `UpgradeCategory.GUN`) and the MiniMap's GPS (id `minimap.gps` only, not other MEDIUM items) may
 go on with the Helicopter, on every route (`Lock.Allowed`). Checked in the Forest dump: the guns are prebuilt in `CarInterior` high
 up (y about 8, switched by `GunLoadoutActivator` from `PlayerStats.gun`), far from the stick and levers and not among the hidden
 read-outs; their outside parts go on `ExteriorSocket`s beside the body model, which `Airframe` doesn't hide (they may sit inside the
