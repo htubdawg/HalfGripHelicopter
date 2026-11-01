@@ -21,7 +21,7 @@ cockpit's wheel and shifter with a stick, a collective and a throttle, and flies
 | `HeliDriver.cs` | Every 0.25 s: the player's `CarLink` + item fitted → builds cockpit, flight, rotor; takes them off when not; `DriveCar` in place of the car's driving (brakes when parked, `engineIndicator` = rotor speed) |
 | `Cockpit.cs` | Hides wheel, all shifters, handbrake (renderers + `InteriorCollider`s off, objects alive, re-hidden every 0.5 s); stick = `DoubleLinearObject` (spring off while held, on when let go, right click toggles `frozen`), levers = `LinearObject` with no spring; placed and sized from the hidden parts' bounds and the dash's pixel size; shaft redrawn in whole pixels |
 | `Flight.cs` | The flight model (see its summary): thrust `m g 2 C rpm²`, climb-rate damping `g/ClimbRate`, attitude hold (5 rad/s, critically damped), yaw from the stick + tail fin, drag balanced at `TopSpeed` |
-| `Rotor.cs` | Main and tail rotor from boxes (colliders removed) on the car's body, sized from its bounds |
+| `Airframe.cs` | The outside: the car's skin models (`CarSkinController.carModels`) and wheel meshes hidden (re-hidden every 0.5 s, shown again on removal), a helicopter of primitives (colliders removed, plain URP Lit) on the body's layer, sized from the body bounds, skids at the wheels' bottom; rotors spin with `Flight.Rpm` |
 | `Art.cs` | `Canvas` (pixel drawing) and the pictures: icon, grip, boot, slot, handles |
 
 ## Rules that matter
@@ -48,12 +48,18 @@ cockpit's wheel and shifter with a stick, a collective and a throttle, and flies
 - Pictures: `dotnet run -c Release --project tools/preview -p:Refs=<halfgriprefs> -- docs/preview.png` (exits 1 on a blank icon).
   Look at it after any art change.
 - In game (the owner tests): copy `Helicopter/` to `<game>\BepInEx\HalfGripMods\`, set `Debug.VerboseLog=true`, read
-  `BepInEx\LogOutput.log` (look for `cockpit built`, `on the car`, `linked to the Open World's garages`).
+  `BepInEx\LogOutput.log` (look for `cockpit built`, `airframe built`, `on the car`, `linked to the Open World's garages`; a failure logs `could not put
+  the helicopter on the car` once a race).
 
 ## Status (keep current)
 
-- **0.1.0** on `claude/practical-thompson-8lxknd`: first build. Compiles against 0.418; pictures checked with `tools/preview`.
-  **Not run in game yet.**
+- **0.1.0** (owner's first test, Open World in a Multiplayer room): the cockpit build threw in `BuildStick` (the grab events are
+  serialized fields, null on a part added in code), the half-built cockpit was not cleaned up and the build was retried every
+  0.25 s, so the dash was a mess and no airframe; the stick also sat on the wheel's middle, near the screen's bottom edge. The owner
+  wants the car to look like a helicopter from outside, not a car with a rotor.
+- **0.1.1** on `claude/practical-thompson-8lxknd`: events created before use; a failed build is cleaned up and not retried until
+  the next race; the stick's grip rests just above the dials' bottom edge; `Airframe` replaces `Rotor` (car hidden, helicopter
+  built). Compiles; **not tested in game.**
 - **Waiting on the owner:** first in-game test, ideally in the Open World. Screenshots of the cockpit, and the log with VerboseLog on.
   Things to check: the controls sit where the wheel and shifter were and grab well; lift-off at about half collective; the hover
   holds when the stick is let go; turning feel; landing; a garage opens on dropping the collective; other items refused.

@@ -16,8 +16,9 @@ namespace HalfGripHelicopter
 
 		private static Cockpit cockpit;
 		private static Flight flight;
-		private static Rotor rotor;
-		private static bool failed;
+		private static Airframe airframe;
+		/// <summary>The car a build failed on: not tried again until there is another car (a new race), so a failure is logged once.</summary>
+		private static CarLink failedOn;
 		private float next;
 
 		private void Update()
@@ -36,11 +37,7 @@ namespace HalfGripHelicopter
 			{
 				CarLink link = Rig.First<CarLink>();
 				bool want = link != null && link.cc != null && HeliItem.Fitted;
-				if (link != Link)
-				{
-					failed = false;
-				}
-				if (want && !Active && !failed)
+				if (want && !Active && link != failedOn)
 				{
 					Install(link);
 				}
@@ -52,7 +49,7 @@ namespace HalfGripHelicopter
 			catch (Exception e)
 			{
 				Mod.Log.LogWarning("Helicopter: " + e);
-				failed = true;
+				failedOn = Link;
 			}
 		}
 
@@ -64,22 +61,21 @@ namespace HalfGripHelicopter
 				cockpit = Cockpit.Build(link);
 				if (cockpit == null)
 				{
-					failed = true;
+					failedOn = link;
 					Remove();
 					return;
 				}
-				int interior = LayerMask.NameToLayer("INTERIOR");
-				Bounds body = Rotor.Body(link.cc, interior);
+				Bounds body = Airframe.Body(link.cc);
 				flight = link.cc.gameObject.AddComponent<Flight>();
-				flight.Init(link, body.size.z);
-				rotor = Rotor.Build(link.cc, flight, body, interior);
+				flight.Init(link, body.size.z * Mathf.Abs(link.cc.transform.lossyScale.z));
+				airframe = Airframe.Build(link.cc, flight, body);
 				Active = true;
 				Mod.Info("Helicopter: on the car (body " + body.size + ", mass " + (link.cc.rb != null ? link.cc.rb.mass : 0f) + ", gravity " + Physics.gravity.y + ").");
 			}
 			catch (Exception e)
 			{
-				Mod.Log.LogWarning("Helicopter: could not put the helicopter on the car: " + e);
-				failed = true;
+				Mod.Log.LogWarning("Helicopter: could not put the helicopter on the car (not tried again this race): " + e);
+				failedOn = link;
 				Remove();
 			}
 		}
@@ -94,9 +90,9 @@ namespace HalfGripHelicopter
 			{
 				Destroy(flight);
 			}
-			if (rotor != null)
+			if (airframe != null)
 			{
-				Destroy(rotor.gameObject);
+				Destroy(airframe.gameObject);
 			}
 			if (Active)
 			{
@@ -111,7 +107,7 @@ namespace HalfGripHelicopter
 			Link = null;
 			cockpit = null;
 			flight = null;
-			rotor = null;
+			airframe = null;
 		}
 
 		/// <summary>

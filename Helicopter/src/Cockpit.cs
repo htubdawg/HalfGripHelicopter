@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace HalfGripHelicopter
 {
@@ -91,7 +92,16 @@ namespace HalfGripHelicopter
 			Cockpit c = holder.AddComponent<Cockpit>();
 			c.link = link;
 			c.layer = holder.layer;
-			c.Make();
+			try
+			{
+				c.Make();
+			}
+			catch
+			{
+				// Takes the half-built controls away and shows the car's own again (OnDestroy).
+				DestroyImmediate(holder);
+				throw;
+			}
 			Instance = c;
 			return c;
 		}
@@ -105,8 +115,10 @@ namespace HalfGripHelicopter
 			Bounds lever = shifter != null ? LocalBounds(shifter, root, new Bounds(new Vector3(3.2f, 2.4f, -0.2f), Vector3.one * 2f)) : new Bounds(wheel.center + new Vector3(5f, 2.5f, -1.3f), Vector3.one * 2f);
 			Hide();
 
-			// The stick: grip at rest where the wheel's middle was, its foot below.
-			Vector3 grip = Snap(new Vector3(wheel.center.x, wheel.center.y, Mathf.Min(wheel.center.z, wheel.min.z) - 0.1f));
+			// The stick: in line with the wheel's middle, its grip at rest just above the dials' bottom edge (the wheel's own middle is near
+			// the screen's bottom edge, where the grip would be cut off), standing up from below the dash.
+			Bounds dials = Dials(root, wheel);
+			Vector3 grip = Snap(new Vector3(wheel.center.x, dials.min.y + 2f * texel, Mathf.Min(Mathf.Min(wheel.center.z, wheel.min.z), dials.min.z) - 0.1f));
 			Vector3 foot = grip - new Vector3(0f, StickLength * texel, 0f);
 			BuildStick(foot, grip);
 
@@ -123,6 +135,32 @@ namespace HalfGripHelicopter
 				}
 			});
 			Mod.Info("Helicopter: cockpit built, pixel " + texel.ToString("0.0000") + ", stick at " + grip + ", levers at " + mid + ", hid " + hiddenRenderers.Count + " renderer(s) and " + hiddenColliders.Count + " hand collider(s).");
+		}
+
+		/// <summary>The bounds of the rev and speed dials (in the cluster behind the wheel), or a guess from the wheel's.</summary>
+		private Bounds Dials(Transform root, Bounds wheel)
+		{
+			Bounds guess = new Bounds(new Vector3(wheel.center.x, wheel.center.y + wheel.extents.y * 0.6f, wheel.center.z), new Vector3(wheel.size.x, wheel.size.y * 0.3f, 0.1f));
+			bool any = false;
+			Bounds b = guess;
+			foreach (Dial d in new[] { link.dialrpm, link.dialspeed })
+			{
+				if (d == null)
+				{
+					continue;
+				}
+				Bounds one = LocalBounds(d.transform, root, guess);
+				if (!any)
+				{
+					b = one;
+					any = true;
+				}
+				else
+				{
+					b.Encapsulate(one);
+				}
+			}
+			return b;
 		}
 
 		/// <summary>The dash's pixel size and sprite material, from the biggest sprite of the part we take the place of.</summary>
@@ -306,6 +344,7 @@ namespace HalfGripHelicopter
 			Cyclic.keepPhysicalCursorRange = 1f;
 			Cyclic.releaseCursorBlend = 1f;
 			Cyclic.handIndicatorCameraOffset = 0.5f;
+			Events(Cyclic);
 			// Held, it follows the hand all the way; let go, it springs back to the middle (unless held by a right click).
 			Cyclic.onGrabbed.AddListener(() => Cyclic.objectSpringForce = 0f);
 			Cyclic.onReleased.AddListener(() => Cyclic.objectSpringForce = 1f);
@@ -352,7 +391,19 @@ namespace HalfGripHelicopter
 			lever.keepPhysicalCursorRange = 1f;
 			lever.releaseCursorBlend = 1f;
 			lever.handIndicatorCameraOffset = 0.5f;
+			Events(lever);
 			return lever;
+		}
+
+		/// <summary>
+		/// The grab events are serialized fields that a scene's objects get from their saved data; on one added in code they are null,
+		/// and the Grabber and our listeners need them.
+		/// </summary>
+		private static void Events(Grabbable g)
+		{
+			g.onGrabbed ??= new UnityEvent();
+			g.onReleased ??= new UnityEvent();
+			g.onRightClicked ??= new UnityEvent();
 		}
 
 		private T Touch<T>(Transform parent, Vector3 at) where T : InteriorCollider
