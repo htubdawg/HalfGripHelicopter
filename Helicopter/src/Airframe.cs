@@ -28,7 +28,11 @@ namespace HalfGripHelicopter
 		private static readonly Color FloorColour = new Color(0.2f, 0.2f, 0.19f);
 		private static readonly Color SeatColour = new Color(0.33f, 0.24f, 0.17f);
 
-		private CarControllerNew cc;
+		/// <summary>The car's object (the parts' parent and the space they are measured in), its skin models and its wheels: a race car's
+		/// <see cref="CarControllerNew"/>, or the garage's preview car, which has no controller.</summary>
+		private Transform root;
+		private CarSkinController skin;
+		private List<Transform> wheels = new List<Transform>();
 		private System.Func<float> rpmOf;
 		private bool remote;
 		private Transform main;
@@ -50,9 +54,14 @@ namespace HalfGripHelicopter
 		/// <summary>The car's body bounds in its own space (from its active skin model), or a car-sized guess.</summary>
 		internal static Bounds Body(CarControllerNew cc)
 		{
+			return Body(cc.transform, cc.GetComponent<CarSkinController>());
+		}
+
+		private static Bounds Body(Transform root, CarSkinController skin)
+		{
 			bool any = false;
 			Bounds b = new Bounds(new Vector3(0f, 1.2f, 0f), new Vector3(3.3f, 1.6f, 8.7f));
-			foreach (Renderer r in BodyRenderers(cc))
+			foreach (Renderer r in BodyRenderers(skin))
 			{
 				if (!r.enabled || !r.gameObject.activeInHierarchy)
 				{
@@ -62,7 +71,7 @@ namespace HalfGripHelicopter
 				for (int i = 0; i < 8; i++)
 				{
 					Vector3 corner = new Vector3((i & 1) == 0 ? w.min.x : w.max.x, (i & 2) == 0 ? w.min.y : w.max.y, (i & 4) == 0 ? w.min.z : w.max.z);
-					Vector3 p = cc.transform.InverseTransformPoint(corner);
+					Vector3 p = root.InverseTransformPoint(corner);
 					if (!any)
 					{
 						b = new Bounds(p, Vector3.zero);
@@ -78,9 +87,8 @@ namespace HalfGripHelicopter
 		}
 
 		/// <summary>The renderers of the car's skin models (all of them, so the one shown later is hidden too).</summary>
-		private static IEnumerable<Renderer> BodyRenderers(CarControllerNew cc)
+		private static IEnumerable<Renderer> BodyRenderers(CarSkinController skin)
 		{
-			CarSkinController skin = cc.GetComponent<CarSkinController>();
 			if (skin == null || skin.carModels == null)
 			{
 				yield break;
@@ -105,9 +113,9 @@ namespace HalfGripHelicopter
 		/// The car's lap-delta meter: sprites on the car's own dashboard (in the body model, but not meshes), which would hang in the cabin
 		/// by the left pillar as a slanted dark bar.
 		/// </summary>
-		private static IEnumerable<Renderer> MeterRenderers(CarControllerNew cc)
+		private static IEnumerable<Renderer> MeterRenderers(Transform root)
 		{
-			foreach (LapDeltaTimerDisplay d in cc.GetComponentsInChildren<LapDeltaTimerDisplay>(true))
+			foreach (LapDeltaTimerDisplay d in root.GetComponentsInChildren<LapDeltaTimerDisplay>(true))
 			{
 				foreach (Renderer r in d.GetComponentsInChildren<Renderer>(true))
 				{
@@ -117,39 +125,50 @@ namespace HalfGripHelicopter
 		}
 
 		/// <summary>The wheels' meshes (not their particles or trails).</summary>
-		private static IEnumerable<Renderer> WheelRenderers(CarControllerNew cc)
+		private static IEnumerable<Renderer> WheelRenderers(List<Transform> wheels)
 		{
-			foreach (List<Transform> list in new[] { cc.frontWheels, cc.backWheels })
+			foreach (Transform w in wheels)
 			{
-				foreach (Transform w in list)
+				if (w == null)
 				{
-					if (w == null)
+					continue;
+				}
+				foreach (Renderer r in w.GetComponentsInChildren<Renderer>(true))
+				{
+					if (r is MeshRenderer || r is SkinnedMeshRenderer)
 					{
-						continue;
-					}
-					foreach (Renderer r in w.GetComponentsInChildren<Renderer>(true))
-					{
-						if (r is MeshRenderer || r is SkinnedMeshRenderer)
-						{
-							yield return r;
-						}
+						yield return r;
 					}
 				}
 			}
 		}
 
+		private static List<Transform> Wheels(CarControllerNew cc)
+		{
+			List<Transform> all = new List<Transform>();
+			if (cc.frontWheels != null)
+			{
+				all.AddRange(cc.frontWheels);
+			}
+			if (cc.backWheels != null)
+			{
+				all.AddRange(cc.backWheels);
+			}
+			return all;
+		}
+
 		/// <summary>The bottom of the wheels in the car's space: where the skids go.</summary>
-		private static float Ground(CarControllerNew cc, Bounds body)
+		private static float Ground(Transform root, List<Transform> wheels, Bounds body)
 		{
 			float low = float.MaxValue;
-			foreach (Renderer r in WheelRenderers(cc))
+			foreach (Renderer r in WheelRenderers(wheels))
 			{
 				if (!r.enabled || !r.gameObject.activeInHierarchy)
 				{
 					continue;
 				}
 				Bounds w = r.bounds;
-				low = Mathf.Min(low, cc.transform.InverseTransformPoint(new Vector3(w.center.x, w.min.y, w.center.z)).y);
+				low = Mathf.Min(low, root.InverseTransformPoint(new Vector3(w.center.x, w.min.y, w.center.z)).y);
 			}
 			return low < float.MaxValue ? low : body.min.y;
 		}
@@ -164,7 +183,7 @@ namespace HalfGripHelicopter
 			Airframe a = holder.AddComponent<Airframe>();
 			try
 			{
-				a.cc = cc;
+				a.Use(cc);
 				a.rpmOf = () => flight != null ? flight.Rpm : 0f;
 				a.Make(body);
 			}
@@ -188,7 +207,7 @@ namespace HalfGripHelicopter
 			Airframe a = holder.AddComponent<Airframe>();
 			try
 			{
-				a.cc = cc;
+				a.Use(cc);
 				a.rpmOf = rpm;
 				a.remote = true;
 				a.Assemble(Shape.Measure(measured.Length, measured.Width, measured.CentreX, measured.CentreZ, measured.Ground, measured.Head));
@@ -202,9 +221,51 @@ namespace HalfGripHelicopter
 			return a;
 		}
 
+		private void Use(CarControllerNew cc)
+		{
+			root = cc.transform;
+			skin = cc.GetComponent<CarSkinController>();
+			wheels = Wheels(cc);
+		}
+
+		/// <summary>
+		/// The helicopter on the garage's preview car (<see cref="LoadoutPreview"/>, in the game's garage, which the Multiplayer mod's
+		/// garage uses too), shown while the Helicopter is in the chassis slot: outside only, measured from the preview car's own body and
+		/// wheels in the skin's space (the preview has no <see cref="CarControllerNew"/> or head camera), rotor still.
+		/// </summary>
+		internal static Airframe BuildPreview(CarSkinController skin, List<Renderer> tires)
+		{
+			GameObject holder = new GameObject("HelicopterAirframePreview");
+			holder.transform.SetParent(skin.transform, false);
+			Airframe a = holder.AddComponent<Airframe>();
+			try
+			{
+				a.root = skin.transform;
+				a.skin = skin;
+				a.wheels = new List<Transform>();
+				foreach (Renderer r in tires)
+				{
+					if (r != null)
+					{
+						a.wheels.Add(r.transform);
+					}
+				}
+				a.remote = true;
+				Bounds b = Body(a.root, skin);
+				a.Assemble(Shape.Measure(b.size.z, b.size.x, b.center.x, b.center.z, Ground(a.root, a.wheels, b), a.Head(b)));
+				Mod.Info("Helicopter: shown on the garage's preview car '" + skin.name + "', body " + b.size + ", pod " + a.frame.PodLength.ToString("0.00") + " long, hid " + a.hidden.Count + " car renderer(s).");
+			}
+			catch
+			{
+				Destroy(holder);
+				throw;
+			}
+			return a;
+		}
+
 		private void Make(Bounds b)
 		{
-			float ground = Ground(cc, b);
+			float ground = Ground(root, wheels, b);
 			Vector3 head = Head(b);
 			Shape.Frame f = Shape.Measure(b.size.z, b.size.x, b.center.x, b.center.z, ground, head);
 			Assemble(f);
@@ -214,8 +275,8 @@ namespace HalfGripHelicopter
 		/// <summary>Hides the car and builds the meshes for a measured frame.</summary>
 		private void Assemble(Shape.Frame f)
 		{
-			partLayer = cc.gameObject.layer;
-			foreach (Renderer r in BodyRenderers(cc))
+			partLayer = root.gameObject.layer;
+			foreach (Renderer r in BodyRenderers(skin))
 			{
 				partLayer = r.gameObject.layer;
 				break;
@@ -259,11 +320,11 @@ namespace HalfGripHelicopter
 		/// </summary>
 		private Vector3 Head(Bounds b)
 		{
-			foreach (Camera c in cc.GetComponentsInChildren<Camera>(true))
+			foreach (Camera c in root.GetComponentsInChildren<Camera>(true))
 			{
 				if (c.CompareTag("MainCamera"))
 				{
-					Vector3 p = cc.transform.InverseTransformPoint(c.transform.position);
+					Vector3 p = root.InverseTransformPoint(c.transform.position);
 					Bounds near = b;
 					near.Expand(b.size);
 					if (near.Contains(p))
@@ -609,7 +670,7 @@ namespace HalfGripHelicopter
 		/// <summary>The URP Lit shader, from a material already in the car (always in the build), or by name.</summary>
 		private Shader FindLit()
 		{
-			foreach (Renderer r in cc.GetComponentsInChildren<Renderer>(true))
+			foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true))
 			{
 				foreach (Material m in r.sharedMaterials)
 				{
@@ -625,7 +686,7 @@ namespace HalfGripHelicopter
 		/// <summary>The car's body and wheel meshes and its lap-delta meter off (again: a refit or a skin change turns them back on).</summary>
 		private void Hide()
 		{
-			foreach (IEnumerable<Renderer> set in new[] { BodyRenderers(cc), WheelRenderers(cc), MeterRenderers(cc) })
+			foreach (IEnumerable<Renderer> set in new[] { BodyRenderers(skin), WheelRenderers(wheels), MeterRenderers(root) })
 			{
 				foreach (Renderer r in set)
 				{
@@ -643,7 +704,7 @@ namespace HalfGripHelicopter
 
 		private void Update()
 		{
-			if (Time.unscaledTime >= nextHide && cc != null)
+			if (Time.unscaledTime >= nextHide && root != null)
 			{
 				nextHide = Time.unscaledTime + 0.5f;
 				Hide();
