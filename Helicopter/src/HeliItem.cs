@@ -9,8 +9,8 @@ namespace HalfGripHelicopter
 	/// helicopter down) and a drawn icon. It has no interior or exterior prefab: <see cref="HeliDriver"/> builds the cockpit and the rotor
 	/// itself when it sees the item fitted, because the cockpit has to take the place of parts that are in the scene, not on a mount.
 	/// <para>Where it is offered: the game's shop, race rewards and unlocks skip items with <c>disabled</c> set, so the item is
-	/// <c>disabled</c> unless <c>Shop.InRuns</c> is on; the Open World's garage, which skips them too, is told to offer it anyway
-	/// (<see cref="Lock"/>, its patch on <c>Garage.Offered</c>).</para>
+	/// <c>disabled</c> unless <c>Shop.InRuns</c> is on; the Open World's and the Multiplayer mod's garages, which skip them too, are
+	/// told to offer it anyway (<see cref="Lock"/>, <c>OfferIn</c>).</para>
 	/// </summary>
 	internal static class HeliItem
 	{

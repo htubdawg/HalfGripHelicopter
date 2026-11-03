@@ -15,8 +15,8 @@ A short showcase of the Helicopter in game. *(Click the picture to watch it on Y
 
 ## What it does
 
-- **Where to get it.** The Open World's garages offer it (price 80). It is not in normal runs' shops and rewards unless you turn
-  on `Shop.InRuns` (see Settings); the price is `Shop.Price`.
+- **Where to get it.** The Open World's garages and the Multiplayer mod's garage offer it (price 80 in the Open World). It is not
+  in normal runs' shops and rewards unless you turn on `Shop.InRuns` (see Settings); the price is `Shop.Price`.
 - **It fits with guns only.** Put the Helicopter in the chassis slot and everything else goes back in the hold, except guns and the
   [MiniMap](https://github.com/htubdawg/HalfGripMiniMap) mod's GPS. Nothing else can go in while it's there. The same holds for a refit in the Open World's garages and for a saved loadout.
 - **New cockpit.** The steering wheel, shifter and handbrake are gone, and so are the car's speed and rev dials, gear box and
@@ -84,6 +84,6 @@ the whole repository download.
 | `Flight.TiltResponse` | 3 | How quickly it pitches and banks to follow the stick (lower is gentler; 0.1.8 was 5) |
 | `Flight.TiltRate` | 30 | The fastest it pitches or banks, degrees a second |
 | `Flight.SpoolSeconds` | 4 | Rotor spin-up time from rest |
-| `Shop.InRuns` | false | Also offer the Helicopter in normal runs (shops and race rewards). Off: only in the Open World |
+| `Shop.InRuns` | false | Also offer the Helicopter in normal runs (shops and race rewards). Off: only in the Open World and Multiplayer garages |
 | `Shop.Price` | 80 | Its shop price |
 | `Debug.VerboseLog` | false | Write what the mod does to `BepInEx\LogOutput.log` |

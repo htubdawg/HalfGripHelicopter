@@ -135,7 +135,7 @@ namespace HalfGripHelicopter
 				ctx.Harmony.Patch(released, postfix: new HarmonyMethod(typeof(Lock), nameof(ReleasedPostfix)));
 				ctx.Harmony.Patch(neutral, postfix: new HarmonyMethod(typeof(Lock), nameof(NeutralPostfix)));
 				Mod.Info("Helicopter: linked to the Open World's garages (the collective dropped and let go opens one).");
-				LinkGarageOffer(ctx, hand.Assembly);
+				OfferIn(ctx, hand.Assembly, "HalfGripOpenWorld.Garage", "Offered", new[] { typeof(UpgradeComponent) }, "the Open World's garage");
 			}
 			catch (Exception e)
 			{
@@ -144,36 +144,64 @@ namespace HalfGripHelicopter
 		}
 
 		/// <summary>
-		/// The Helicopter is <c>disabled</c> unless <c>Shop.InRuns</c> is on, which keeps it out of the game's shops and rewards; the Open
-		/// World's garage skips <c>disabled</c> items too (<c>Garage.Offered</c>, the only place it reads the flag), so the flag is lifted
-		/// for the length of that call only, leaving its other checks (consumables, a Multiplayer room's bans) as they are.
+		/// The Helicopter is <c>disabled</c> unless <c>Shop.InRuns</c> is on, which keeps it out of the game's shops and rewards. The Open
+		/// World's garage (<c>Garage.Offered</c>, asked per item) and the Multiplayer mod's (<c>Loadout.WriteToSave</c>, which fills its
+		/// inventory once as it opens) skip <c>disabled</c> items too, and those are the only places either mod reads the flag; so it is
+		/// lifted for the length of those calls only, and their other checks (consumables, a room's bans) apply as usual.
 		/// </summary>
-		private static void LinkGarageOffer(ModContext ctx, Assembly openWorld)
+		private static void OfferIn(ModContext ctx, Assembly mod, string type, string method, Type[] args, string garage)
 		{
-			Type garage = SafeType(openWorld, "HalfGripOpenWorld.Garage");
-			MethodInfo offered = garage != null ? AccessTools.Method(garage, "Offered", new[] { typeof(UpgradeComponent) }) : null;
-			if (offered == null)
+			Type t = SafeType(mod, type);
+			MethodInfo m = t != null ? AccessTools.Method(t, method, args) : null;
+			if (m == null)
 			{
-				Mod.Log.LogWarning("Helicopter: the Open World has no Garage.Offered, so its garages offer the Helicopter only with Shop.InRuns on.");
+				Mod.Log.LogWarning("Helicopter: " + type + "." + method + " was not found, so " + garage + " offers the Helicopter only with Shop.InRuns on.");
 				return;
 			}
-			ctx.Harmony.Patch(offered, prefix: new HarmonyMethod(typeof(Lock), nameof(OfferedPrefix)), postfix: new HarmonyMethod(typeof(Lock), nameof(OfferedPostfix)));
+			ctx.Harmony.Patch(m, prefix: new HarmonyMethod(typeof(Lock), nameof(LiftPrefix)), postfix: new HarmonyMethod(typeof(Lock), nameof(LiftPostfix)));
 		}
 
-		private static void OfferedPrefix(UpgradeComponent u, out bool __state)
+		private static void LiftPrefix(out bool __state)
 		{
-			__state = HeliItem.Is(u) && u.disabled;
+			UpgradeComponent item = HeliItem.Item;
+			__state = item != null && item.disabled;
 			if (__state)
 			{
-				u.disabled = false;
+				item.disabled = false;
 			}
 		}
 
-		private static void OfferedPostfix(UpgradeComponent u, bool __state)
+		private static void LiftPostfix(bool __state)
 		{
-			if (__state)
+			if (__state && HeliItem.Item != null)
 			{
-				u.disabled = true;
+				HeliItem.Item.disabled = true;
+			}
+		}
+
+		private static bool mpLinked;
+
+		/// <summary>Offers the Helicopter in the Multiplayer mod's garage (<see cref="OfferIn"/>); tried at each scene load until that mod is found.</summary>
+		internal static void LinkMultiplayer(ModContext ctx)
+		{
+			if (mpLinked)
+			{
+				return;
+			}
+			try
+			{
+				Type loadout = AppDomain.CurrentDomain.GetAssemblies().Select(a => SafeType(a, "Multiplayer.Loadout")).FirstOrDefault(t => t != null);
+				if (loadout == null)
+				{
+					return;
+				}
+				mpLinked = true;
+				OfferIn(ctx, loadout.Assembly, "Multiplayer.Loadout", "WriteToSave", Type.EmptyTypes, "the Multiplayer garage");
+				Mod.Info("Helicopter: linked to the Multiplayer garage.");
+			}
+			catch (Exception e)
+			{
+				Mod.Log.LogWarning("Helicopter: could not link to the Multiplayer garage: " + e.Message);
 			}
 		}
 

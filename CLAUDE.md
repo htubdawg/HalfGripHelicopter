@@ -30,7 +30,7 @@ changes the state of things, this file must already say everything needed to car
 |---|---|
 | `Mod.cs` | Config, registers the item and patches, the persistent `HeliDriver` object |
 | `HeliItem.cs` | The item: a clone of chassis `aero_1` (or any chassis) with stock numbers, no downforce, a drawn icon, price `Shop.Price` (80); `Fitted`/`Current` read `PlayerLoadout`; `disabled` unless `Shop.InRuns` (set at make and on the setting's change) |
-| `Lock.cs` | Fits alone but for `Lock.Allowed` (any `UpgradeCategory.GUN`, and the MiniMap's GPS by its id `minimap.gps` only): `InventorySlot.OnDrop` (refuse others / clear others), `LoadoutSpawner.Awake` (cut the loadout to the allowed items, stats again from them), `LoadoutRefit.Swap` (live refits); the Open World's `Garage.Offered` offers the Helicopter though `disabled` (flag lifted for that call); `CarLink.FixedUpdate` skipped while flying; no `ACH_BIG_AIR`; the Open World's `ShifterHand` patched by name |
+| `Lock.cs` | Fits alone but for `Lock.Allowed` (any `UpgradeCategory.GUN`, and the MiniMap's GPS by its id `minimap.gps` only): `InventorySlot.OnDrop` (refuse others / clear others), `LoadoutSpawner.Awake` (cut the loadout to the allowed items, stats again from them), `LoadoutRefit.Swap` (live refits); the Open World's `Garage.Offered` and the Multiplayer mod's `Loadout.WriteToSave` offer the Helicopter though `disabled` (`OfferIn`: flag lifted for that call); `CarLink.FixedUpdate` skipped while flying; no `ACH_BIG_AIR`; the Open World's `ShifterHand` patched by name |
 | `HeliDriver.cs` | Every 0.25 s: the player's `CarLink` + item fitted → builds cockpit, flight, rotor; takes them off when not; `DriveCar` in place of the car's driving (brakes when parked, `engineIndicator` = rotor speed) |
 | `Cockpit.cs` | Finds the MiniMap's GPS on the dash (`GpsScreen` by name, `FindGps`) and mounts it on a plate sprite (`BuildMount`, `Art.Mount`), whose box keeps the panel's face plain behind it; hides the car's read-outs (dials, gear box, mirror, money and enemy-targeting lights); hides wheel, all shifters, handbrake (renderers + `InteriorCollider`s off, objects alive, re-hidden every 0.5 s; the wheel's lock-button sprites every frame, since `NSteeringWheel.Update` turns one back on); stick = `DoubleLinearObject` (spring off while held, on when let go, right click toggles a lock that leaves the spring off on release, not the game's `frozen`, so a locked stick still moves while held), levers = `LinearObject` with no spring; placed and sized from the hidden parts' bounds and the dash's pixel size; shaft redrawn in whole pixels |
 | `Flight.cs` | The flight model (see its summary): thrust `m g 2 C rpm²`, climb-rate damping `g/ClimbRate`, attitude hold (critically damped at `TiltResponse` rad/s, default 3, turning capped at `TiltRate` deg/s, default 30), yaw from the stick + tail fin, drag balanced at `TopSpeed` |
@@ -43,7 +43,7 @@ changes the state of things, this file must already say everything needed to car
 ## Rules that matter
 
 - The item id `helicopter.heli` is saved in runs: never change it.
-- Offered only in the Open World by default (owner, 0.2.6); `Shop.InRuns` adds normal runs, `Shop.Price` sets the price (default 80, was a fixed 150).
+- Offered only in the Open World's and the Multiplayer mod's garages by default (owner, 0.2.6); `Shop.InRuns` adds normal runs, `Shop.Price` sets the price (default 80, was a fixed 150).
 - **No keybindings** (owner): everything is worked by the cockpit hand. W/S do nothing while flying.
 - The stick springs to the middle when let go (the helicopter levels and hovers); right click locks it: still moved by the hand, but it stays where it is let go. The levers keep their place.
 - Fits alone but for guns and the GPS (owner, 0.2.0; `Lock.Allowed` is the one list): keep every route closed (garage slot, race spawn, live refit). Do not invent other routes around `LoadoutRefit.Swap`.
@@ -83,7 +83,8 @@ changes the state of things, this file must already say everything needed to car
   paint line (`Skins.cs`: body index + 3 colours). No loadout or equipment is sent. So nothing a mod builds on its own car shows on
   the others' screens unless the mod sends it itself (`ctx.Net`, HalfGripTools 1.0.6+; same mods everywhere, channel = mod id).
 - **Where items are offered:** the shop (`UpgradeMapper` query), race rewards (`RewardReveal`), unlocks (`ItemUnlocks`), per-run tier
-  dealing (`ItemTiers.DealForRun`) and the Open World's garage (`Garage.Offered`) all skip `disabled` items and read the flag live
+  dealing (`ItemTiers.DealForRun`), the Open World's garage (`Garage.Offered`) and the Multiplayer mod's (`Loadout.WriteToSave`, fills
+  the garage's inventory once as it opens; free, every item but its `Banned`) all skip `disabled` items and read the flag live
   when they pick; the id lookup ignores it (a saved run still loads the item). Locked items still show in the Open World's garage.
 - Native Unity calls (`Quaternion.Euler`, `AngleAxis`, ...) throw in `tools/preview`; keep `Shape.cs` to managed struct code.
 
@@ -131,9 +132,9 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 offered only in the Open World unless `Shop.InRuns` (default false) is on, at `Shop.Price` (default 80; new keys, no migration).
 The item is `disabled` unless `Shop.InRuns` (shops, rewards, unlocks skip it); `Lock` patches the Open World's `Garage.Offered` (by name,
 with the garages link) to lift the flag for that call only (an every-frame check of `MapView.Active` was tried first and dropped:
-the garage is the only Open World reader). So Open World event rewards don't offer it. Checked: compiles. **Not tested
-in game.** Next: open the PR; owner's test: in a normal run it no longer shows in shops (on with `Shop.InRuns`), it shows in the
-Open World's garage at 80. In a Multiplayer room outside the Open World its garage won't offer it either (unless `Shop.InRuns`).
+the garage is the only Open World reader); the Multiplayer garage is offered it the same way (owner's ask; `Lock.LinkMultiplayer`,
+log `linked to the Multiplayer garage`). Checked: compiles. **Not tested in game.** Next: open the PR; owner's test: in a normal run
+it no longer shows in shops (on with `Shop.InRuns`); it shows in the Open World's garage at 80 and in the Multiplayer garage.
 History, 0.2.5: **Owner's report (Multiplayer):**
 other players' helicopters showed as the last car they used, flying. Cause: the Multiplayer mod's stand-in for another player is an
 enemy car dressed only in that player's paint and body index (see *Game facts*); this mod built the helicopter on the local car
