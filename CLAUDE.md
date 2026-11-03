@@ -126,7 +126,7 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 **Now:** 0.2.4 released on `main` (PR #3), the README's installer section too (PR #4, merged). **Owner's report (Multiplayer):**
 other players' helicopters showed as the last car they used, flying. Cause: the Multiplayer mod's stand-in for another player is an
 enemy car dressed only in that player's paint and body index (see *Game facts*); this mod built the helicopter on the local car
-only, so no other machine knew about it. **0.2.5** on `claude/practical-thompson-8lxknd` (`Remote.cs`): each copy sends over
+only, so no other machine knew about it. **0.2.5** on `claude/practical-thompson-8lxknd`, PR #5 (`Remote.cs`): each copy sends over
 `ctx.Net` four times a second while the helicopter is on (reliably once a second and on/off) its `Shape.Frame` inputs + rotor speed;
 the others build an outside-only airframe on that player's stand-in (same shape, car body and wheels hidden, rotors at the sent
 speed), rebuilt if the stand-in is remade, taken off on "off", after 10 s silence or out of the room. Logs (verbose) `player N flies
