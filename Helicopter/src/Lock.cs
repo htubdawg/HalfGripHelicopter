@@ -142,7 +142,7 @@ namespace HalfGripHelicopter
 			}
 		}
 
-		private static Type SafeType(Assembly a, string name)
+		internal static Type SafeType(Assembly a, string name)
 		{
 			try
 			{

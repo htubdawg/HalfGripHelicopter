@@ -23,6 +23,7 @@ namespace HalfGripHelicopter
 
 		private void Update()
 		{
+			HeliItem.UpdateOffer();
 			if (Active && Link == null)
 			{
 				// The race's scene is gone, and the helicopter with it.

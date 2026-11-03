@@ -29,7 +29,7 @@ changes the state of things, this file must already say everything needed to car
 | File | Role |
 |---|---|
 | `Mod.cs` | Config, registers the item and patches, the persistent `HeliDriver` object |
-| `HeliItem.cs` | The item: a clone of chassis `aero_1` (or any chassis) with stock numbers, no downforce, a drawn icon; `Fitted`/`Current` read `PlayerLoadout` |
+| `HeliItem.cs` | The item: a clone of chassis `aero_1` (or any chassis) with stock numbers, no downforce, a drawn icon, price `Shop.Price` (80); `Fitted`/`Current` read `PlayerLoadout`; `UpdateOffer` (every frame) keeps it `disabled` except in an Open World race (`HalfGripOpenWorld.MapView.Active`, by reflection) or with `Shop.InRuns` |
 | `Lock.cs` | Fits alone but for `Lock.Allowed` (any `UpgradeCategory.GUN`, and the MiniMap's GPS by its id `minimap.gps` only): `InventorySlot.OnDrop` (refuse others / clear others), `LoadoutSpawner.Awake` (cut the loadout to the allowed items, stats again from them), `LoadoutRefit.Swap` (live refits); `CarLink.FixedUpdate` skipped while flying; no `ACH_BIG_AIR`; the Open World's `ShifterHand` patched by name |
 | `HeliDriver.cs` | Every 0.25 s: the player's `CarLink` + item fitted → builds cockpit, flight, rotor; takes them off when not; `DriveCar` in place of the car's driving (brakes when parked, `engineIndicator` = rotor speed) |
 | `Cockpit.cs` | Finds the MiniMap's GPS on the dash (`GpsScreen` by name, `FindGps`) and mounts it on a plate sprite (`BuildMount`, `Art.Mount`), whose box keeps the panel's face plain behind it; hides the car's read-outs (dials, gear box, mirror, money and enemy-targeting lights); hides wheel, all shifters, handbrake (renderers + `InteriorCollider`s off, objects alive, re-hidden every 0.5 s; the wheel's lock-button sprites every frame, since `NSteeringWheel.Update` turns one back on); stick = `DoubleLinearObject` (spring off while held, on when let go, right click toggles a lock that leaves the spring off on release, not the game's `frozen`, so a locked stick still moves while held), levers = `LinearObject` with no spring; placed and sized from the hidden parts' bounds and the dash's pixel size; shaft redrawn in whole pixels |
@@ -43,6 +43,7 @@ changes the state of things, this file must already say everything needed to car
 ## Rules that matter
 
 - The item id `helicopter.heli` is saved in runs: never change it.
+- Offered only in the Open World by default (owner, 0.2.6); `Shop.InRuns` adds normal runs, `Shop.Price` sets the price (default 80, was a fixed 150).
 - **No keybindings** (owner): everything is worked by the cockpit hand. W/S do nothing while flying.
 - The stick springs to the middle when let go (the helicopter levels and hovers); right click locks it: still moved by the hand, but it stays where it is let go. The levers keep their place.
 - Fits alone but for guns and the GPS (owner, 0.2.0; `Lock.Allowed` is the one list): keep every route closed (garage slot, race spawn, live refit). Do not invent other routes around `LoadoutRefit.Swap`.
@@ -81,6 +82,9 @@ changes the state of things, this file must already say everything needed to car
   an enemy car from the game's prefab (`RaceSync.SpawnProxy`), kinematic, placed at that player's car position, dressed only by a
   paint line (`Skins.cs`: body index + 3 colours). No loadout or equipment is sent. So nothing a mod builds on its own car shows on
   the others' screens unless the mod sends it itself (`ctx.Net`, HalfGripTools 1.0.6+; same mods everywhere, channel = mod id).
+- **Where items are offered:** the shop (`UpgradeMapper` query), race rewards (`RewardReveal`), unlocks (`ItemUnlocks`), per-run tier
+  dealing (`ItemTiers.DealForRun`) and the Open World's garage (`Garage.Offered`) all skip `disabled` items and read the flag live
+  when they pick; the id lookup ignores it (a saved run still loads the item). Locked items still show in the Open World's garage.
 - Native Unity calls (`Quaternion.Euler`, `AngleAxis`, ...) throw in `tools/preview`; keep `Shape.cs` to managed struct code.
 
 ## Owner's wishes (for the look)
@@ -123,7 +127,13 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 ## Status (keep current)
 
-**Now:** 0.2.4 released on `main` (PR #3), the README's installer section too (PR #4, merged). **Owner's report (Multiplayer):**
+**Now:** 0.2.5 released on `main` (PR #5, merged). **0.2.6** on `claude/practical-thompson-8lxknd` (owner's ask): the Helicopter is
+offered only in the Open World unless `Shop.InRuns` (default false) is on, at `Shop.Price` (default 80; new keys, no migration).
+`HeliItem.UpdateOffer` sets the catalog item's `disabled` every frame from `MapView.Active` (found by name at scene loads, like the
+garages link). Logs (verbose) `linked to the Open World's MapView`, `offered` / `no longer offered`. Checked: compiles. **Not tested
+in game.** Next: open the PR; owner's test: in a normal run it no longer shows in shops (on with `Shop.InRuns`), it shows in the
+Open World's garage at 80. In a Multiplayer room outside the Open World its garage won't offer it either (unless `Shop.InRuns`).
+History, 0.2.5: **Owner's report (Multiplayer):**
 other players' helicopters showed as the last car they used, flying. Cause: the Multiplayer mod's stand-in for another player is an
 enemy car dressed only in that player's paint and body index (see *Game facts*); this mod built the helicopter on the local car
 only, so no other machine knew about it. **0.2.5** on `claude/practical-thompson-8lxknd`, PR #5 (`Remote.cs`): each copy sends over
