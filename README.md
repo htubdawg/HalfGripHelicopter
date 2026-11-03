@@ -34,6 +34,7 @@ A short showcase of the Helicopter in game. *(Click the picture to watch it on Y
   and, with the MiniMap's GPS fitted, a grey mounting plate the GPS sits on.
 
   ![The helicopter from outside and from the seat](docs/model.png)
+- **In the garage** (normal runs' and the Multiplayer mod's), the car preview shows the helicopter while it's in the chassis slot.
 - **No keys.** W and S do nothing. Everything is done with the hand.
 - In the **Open World**, land in a garage and drop the collective to the bottom, then let go of it. That opens the garage (instead of
   letting go of the shifter in neutral). The same signs you on to an event.
