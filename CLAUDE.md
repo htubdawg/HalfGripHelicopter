@@ -29,8 +29,8 @@ changes the state of things, this file must already say everything needed to car
 | File | Role |
 |---|---|
 | `Mod.cs` | Config, registers the item and patches, the persistent `HeliDriver` object |
-| `HeliItem.cs` | The item: a clone of chassis `aero_1` (or any chassis) with stock numbers, no downforce, a drawn icon, price `Shop.Price` (80); `Fitted`/`Current` read `PlayerLoadout`; `UpdateOffer` (every frame) keeps it `disabled` except in an Open World race (`HalfGripOpenWorld.MapView.Active`, by reflection) or with `Shop.InRuns` |
-| `Lock.cs` | Fits alone but for `Lock.Allowed` (any `UpgradeCategory.GUN`, and the MiniMap's GPS by its id `minimap.gps` only): `InventorySlot.OnDrop` (refuse others / clear others), `LoadoutSpawner.Awake` (cut the loadout to the allowed items, stats again from them), `LoadoutRefit.Swap` (live refits); `CarLink.FixedUpdate` skipped while flying; no `ACH_BIG_AIR`; the Open World's `ShifterHand` patched by name |
+| `HeliItem.cs` | The item: a clone of chassis `aero_1` (or any chassis) with stock numbers, no downforce, a drawn icon, price `Shop.Price` (80); `Fitted`/`Current` read `PlayerLoadout`; `disabled` unless `Shop.InRuns` (set at make and on the setting's change) |
+| `Lock.cs` | Fits alone but for `Lock.Allowed` (any `UpgradeCategory.GUN`, and the MiniMap's GPS by its id `minimap.gps` only): `InventorySlot.OnDrop` (refuse others / clear others), `LoadoutSpawner.Awake` (cut the loadout to the allowed items, stats again from them), `LoadoutRefit.Swap` (live refits); the Open World's `Garage.Offered` offers the Helicopter though `disabled` (flag lifted for that call); `CarLink.FixedUpdate` skipped while flying; no `ACH_BIG_AIR`; the Open World's `ShifterHand` patched by name |
 | `HeliDriver.cs` | Every 0.25 s: the player's `CarLink` + item fitted → builds cockpit, flight, rotor; takes them off when not; `DriveCar` in place of the car's driving (brakes when parked, `engineIndicator` = rotor speed) |
 | `Cockpit.cs` | Finds the MiniMap's GPS on the dash (`GpsScreen` by name, `FindGps`) and mounts it on a plate sprite (`BuildMount`, `Art.Mount`), whose box keeps the panel's face plain behind it; hides the car's read-outs (dials, gear box, mirror, money and enemy-targeting lights); hides wheel, all shifters, handbrake (renderers + `InteriorCollider`s off, objects alive, re-hidden every 0.5 s; the wheel's lock-button sprites every frame, since `NSteeringWheel.Update` turns one back on); stick = `DoubleLinearObject` (spring off while held, on when let go, right click toggles a lock that leaves the spring off on release, not the game's `frozen`, so a locked stick still moves while held), levers = `LinearObject` with no spring; placed and sized from the hidden parts' bounds and the dash's pixel size; shaft redrawn in whole pixels |
 | `Flight.cs` | The flight model (see its summary): thrust `m g 2 C rpm²`, climb-rate damping `g/ClimbRate`, attitude hold (critically damped at `TiltResponse` rad/s, default 3, turning capped at `TiltRate` deg/s, default 30), yaw from the stick + tail fin, drag balanced at `TopSpeed` |
@@ -129,8 +129,9 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 **Now:** 0.2.5 released on `main` (PR #5, merged). **0.2.6** on `claude/practical-thompson-8lxknd` (owner's ask): the Helicopter is
 offered only in the Open World unless `Shop.InRuns` (default false) is on, at `Shop.Price` (default 80; new keys, no migration).
-`HeliItem.UpdateOffer` sets the catalog item's `disabled` every frame from `MapView.Active` (found by name at scene loads, like the
-garages link). Logs (verbose) `linked to the Open World's MapView`, `offered` / `no longer offered`. Checked: compiles. **Not tested
+The item is `disabled` unless `Shop.InRuns` (shops, rewards, unlocks skip it); `Lock` patches the Open World's `Garage.Offered` (by name,
+with the garages link) to lift the flag for that call only (an every-frame check of `MapView.Active` was tried first and dropped:
+the garage is the only Open World reader). So Open World event rewards don't offer it. Checked: compiles. **Not tested
 in game.** Next: open the PR; owner's test: in a normal run it no longer shows in shops (on with `Shop.InRuns`), it shows in the
 Open World's garage at 80. In a Multiplayer room outside the Open World its garage won't offer it either (unless `Shop.InRuns`).
 History, 0.2.5: **Owner's report (Multiplayer):**

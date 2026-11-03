@@ -135,6 +135,7 @@ namespace HalfGripHelicopter
 				ctx.Harmony.Patch(released, postfix: new HarmonyMethod(typeof(Lock), nameof(ReleasedPostfix)));
 				ctx.Harmony.Patch(neutral, postfix: new HarmonyMethod(typeof(Lock), nameof(NeutralPostfix)));
 				Mod.Info("Helicopter: linked to the Open World's garages (the collective dropped and let go opens one).");
+				LinkGarageOffer(ctx, hand.Assembly);
 			}
 			catch (Exception e)
 			{
@@ -142,7 +143,41 @@ namespace HalfGripHelicopter
 			}
 		}
 
-		internal static Type SafeType(Assembly a, string name)
+		/// <summary>
+		/// The Helicopter is <c>disabled</c> unless <c>Shop.InRuns</c> is on, which keeps it out of the game's shops and rewards; the Open
+		/// World's garage skips <c>disabled</c> items too (<c>Garage.Offered</c>, the only place it reads the flag), so the flag is lifted
+		/// for the length of that call only, leaving its other checks (consumables, a Multiplayer room's bans) as they are.
+		/// </summary>
+		private static void LinkGarageOffer(ModContext ctx, Assembly openWorld)
+		{
+			Type garage = SafeType(openWorld, "HalfGripOpenWorld.Garage");
+			MethodInfo offered = garage != null ? AccessTools.Method(garage, "Offered", new[] { typeof(UpgradeComponent) }) : null;
+			if (offered == null)
+			{
+				Mod.Log.LogWarning("Helicopter: the Open World has no Garage.Offered, so its garages offer the Helicopter only with Shop.InRuns on.");
+				return;
+			}
+			ctx.Harmony.Patch(offered, prefix: new HarmonyMethod(typeof(Lock), nameof(OfferedPrefix)), postfix: new HarmonyMethod(typeof(Lock), nameof(OfferedPostfix)));
+		}
+
+		private static void OfferedPrefix(UpgradeComponent u, out bool __state)
+		{
+			__state = HeliItem.Is(u) && u.disabled;
+			if (__state)
+			{
+				u.disabled = false;
+			}
+		}
+
+		private static void OfferedPostfix(UpgradeComponent u, bool __state)
+		{
+			if (__state)
+			{
+				u.disabled = true;
+			}
+		}
+
+		private static Type SafeType(Assembly a, string name)
 		{
 			try
 			{

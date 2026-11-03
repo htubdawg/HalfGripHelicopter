@@ -45,7 +45,7 @@ namespace HalfGripHelicopter
 			TiltResponse = ctx.Config.Bind("Flight", "TiltResponse", 3f, "How quickly the helicopter pitches and banks to follow the stick (the attitude spring's natural frequency, rad/s; 0.1.8 used 5). Lower is gentler.");
 			TiltRate = ctx.Config.Bind("Flight", "TiltRate", 30f, "The fastest the helicopter pitches or banks, in degrees a second.");
 			SpoolSeconds = ctx.Config.Bind("Flight", "SpoolSeconds", 4f, "Seconds the rotor takes to spin up to full speed from rest.");
-			InRuns = ctx.Config.Bind("Shop", "InRuns", false, "Offer the Helicopter in normal runs too (shops and race rewards). Off: only the Open World's garages (and its rewards) offer it.");
+			InRuns = ctx.Config.Bind("Shop", "InRuns", false, "Offer the Helicopter in normal runs too (shops and race rewards). Off: only the Open World's garages offer it.");
 			Price = ctx.Config.Bind("Shop", "Price", 80, new ConfigDescription("The Helicopter's shop price.", new AcceptableValueRange<int>(0, 9999)));
 			Verbose = ctx.Config.Bind("Debug", "VerboseLog", false, "Write what the mod does to the log.");
 
@@ -55,8 +55,6 @@ namespace HalfGripHelicopter
 			ctx.OnSceneLoaded(scene =>
 			{
 				Lock.LinkOpenWorld(ctx);
-				HeliItem.LinkOpenWorld();
-				HeliItem.UpdateOffer();
 			});
 
 			driver = new GameObject("HelicopterDriver");
