@@ -46,6 +46,7 @@ namespace HalfGripHelicopter
 			Verbose = ctx.Config.Bind("Debug", "VerboseLog", false, "Write what the mod does to the log.");
 
 			HeliItem.Register(ctx);
+			Remote.Link(ctx);
 			ctx.PatchAll();
 			ctx.OnSceneLoaded(scene =>
 			{

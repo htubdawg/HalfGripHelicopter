@@ -37,6 +37,7 @@ changes the state of things, this file must already say everything needed to car
 | `Shape.cs` | The helicopter's geometry as plain triangles per `Paint` (Unity's managed structs only, so `tools/preview` draws it too): `Measure` sizes the pod from the car (length >= 0.62 car lengths, height 0.4-0.5 of the length, head 57% up and 40% back), `Build` gives the outer skin + outside parts, the cabin (inner skin facing in with holes at the glass, glareshield shelf, panel pedestal with a drawn face, floor, seats), the panes (glass seen from inside), the main and tail rotors. Windows are cut at level heights; every edge level owns a mesh column on every ring (`Angles`), so edges are clean. Pixel arrays for the speckle and glass textures; `PanelFace` (the face's corner and edge vectors), `PanelSize`, `PanelPixels` (the guessed face). No `Quaternion.Euler` (native; use `AboutX`/`AboutY`) |
 | `Airframe.cs` | Hides the car's skin models (`CarSkinController.carModels`) and wheel meshes (re-hidden every 0.5 s, shown again on removal); turns `Shape`'s pieces into meshes on the body's layer, one URP Lit material per paint, `_Cull` Back, speckle and panel textures; the panes in the game's `Sprite-Unlit-Default` (alpha blended, always in the build, both sides; hidden from outside by the opaque outer glass); the head is the car's child camera tagged MainCamera; the cabin and panes are always drawn except for the camera named `RearViewCamera` (`beginCameraRendering`); rotors spin with `Flight.Rpm`; `FitPanel` redraws the panel's face round the cockpit's controls (below) |
 | `Art.cs` | `Canvas` (pixel drawing) and the pictures: icon, stick grip and shaft, boot, the levers' gate plate (`Gate`) and levers, `Speckle` |
+| `Remote.cs` | Multiplayer: tells the other players (HalfGripTools' `ctx.Net`, read by reflection so 1.0.2 still works) whether the helicopter is on, its `Shape.Frame` inputs and rotor speed; puts `Airframe.BuildRemote` (outside only) on the Multiplayer mod's stand-ins (`Multiplayer.RemoteCar`, by name: `PeerId`, `IsAi`) |
 | `Panel.cs` | The instrument panel's face (managed only): `Draw(w, h, seenFrom, zones)` in the dash's style, kept clear where the controls fall (`Zone`s; a grey console under the levers' gate), gauges and strips centred in the free stretches of the part seen above the screen's edge; `GuessZones` from the owner's 0.1.6 screenshot |
 
 ## Rules that matter
@@ -76,6 +77,10 @@ changes the state of things, this file must already say everything needed to car
 - Unity's front faces are clockwise; `Vector3.Cross(b - a, c - a)` points at the viewer. The URP Lit materials cull back faces.
 - See-through materials: the game ships `Universal Render Pipeline/2D/Sprite-Unlit-Default` (alpha blended, both sides) everywhere;
   a transparent URP Lit variant may be stripped from the build, so don't use one.
+- **Multiplayer** (the Multiplayer mod 1.0.0, `4l3x4nd3r0/HalfGripMods`, `mods/Multiplayer`): another player's car is a stand-in,
+  an enemy car from the game's prefab (`RaceSync.SpawnProxy`), kinematic, placed at that player's car position, dressed only by a
+  paint line (`Skins.cs`: body index + 3 colours). No loadout or equipment is sent. So nothing a mod builds on its own car shows on
+  the others' screens unless the mod sends it itself (`ctx.Net`, HalfGripTools 1.0.6+; same mods everywhere, channel = mod id).
 - Native Unity calls (`Quaternion.Euler`, `AngleAxis`, ...) throw in `tools/preview`; keep `Shape.cs` to managed struct code.
 
 ## Owner's wishes (for the look)
@@ -118,18 +123,17 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 ## Status (keep current)
 
-**Now:** 0.2.4 released on `main` (PR #3, merged). Open: PR #4 on `claude/practical-thompson-8lxknd` (README install via the HalfGripMods installer, no code change). **0.2.3 test** (owner's screenshot, Open World, a gun fitted):
-the plate *still* covered the whole GPS (only the plate's speckle and seat line showed where the GPS should be), so sorting one
-order below the GPS was not the cause, or not the only one. Likely depth: the plate (lit, writes depth) stood at the GPS's *front*
-z (the screen) + 0.03, while the casing stands 0.02 world units behind the screen, and in the interior's units (root scale unknown)
-that can put the plate in front of the casing; also the plate's material queue may differ from the GPS's (not known: the next log
-says). **0.2.4** makes it impossible to cover: `Art.Mount(..., hole)` leaves the GPS's own pixels see-through (`Cockpit.GpsHole`
-reads the casing's picture through a render texture, since the GPS makes it unreadable, plus the screen's whole box; falls back to
-cutting the whole box), the seat shadow follows the hole's edge, and the plate stands behind the GPS's *back* z + 0.03. Logs `the
-GPS's plate has a hole of N of its M middle pixels` and `the GPS's plate is WxH px at z ... (GPS a to b), sorting L/O, material
-'...' queue Q`. Checked: compiles, `tools/preview -- --fitted` (stand-in casing with cut corners) looked at. **Owner tested 0.2.4: "looks good"**;
-The README's Install now leads with the HalfGripMods installer (`+ ADD` with the
-`.../tree/main/Helicopter` folder link; the link form is from the installer's README, not tried), the copy-by-hand way after it. **Next step:** the owner merges PR #4; then restart the branch from `origin/main`. History of 0.2.x: Owner's asks after testing 0.2.0 (screenshot: Open World,
+**Now:** 0.2.4 released on `main` (PR #3), the README's installer section too (PR #4, merged). **Owner's report (Multiplayer):**
+other players' helicopters showed as the last car they used, flying. Cause: the Multiplayer mod's stand-in for another player is an
+enemy car dressed only in that player's paint and body index (see *Game facts*); this mod built the helicopter on the local car
+only, so no other machine knew about it. **0.2.5** on `claude/practical-thompson-8lxknd` (`Remote.cs`): each copy sends over
+`ctx.Net` four times a second while the helicopter is on (reliably once a second and on/off) its `Shape.Frame` inputs + rotor speed;
+the others build an outside-only airframe on that player's stand-in (same shape, car body and wheels hidden, rotors at the sent
+speed), rebuilt if the stand-in is remade, taken off on "off", after 10 s silence or out of the room. Logs (verbose) `player N flies
+a helicopter`, `another player's helicopter built on '...'`; a missing `Multiplayer.RemoteCar` warns once. Checked: compiles against
+HalfGripTools 1.0.5 (no channel, so off) and 1.0.6. **Not tested in game** (needs two players, both on 0.2.5 and HalfGripTools 1.0.6).
+**Next step:** the owner's test in a room: each sees the other's helicopter, rotors spinning, gone when the item comes off.
+History of 0.2.x: Owner's asks after testing 0.2.0 (screenshot: Open World,
 GPS fitted): (1) two small lights left over above the old shifter: the car's money and enemy-targeting lights (`DollarSign`,
 `EnemyTargetingLED`), now hidden with the other read-outs; (2) the "AirTime" combo line on the screen: `Lock.NoAirTime` skips it
 while flying; (3) the GPS looked stuck on, over the panel's drawn gauges. 0.2.1 drew a dark recessed bay on the panel's face round it:
