@@ -1,6 +1,6 @@
 # HalfGripHelicopter
 
-**Version 0.2.4** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
+**Version 0.2.5** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
 
 A chassis item, **Helicopter**, that turns your car into a helicopter. Made for the
 [Open World](https://github.com/htubdawg/HalfGripOpenWorld) mod, but it works in any race.
@@ -36,6 +36,8 @@ A short showcase of the Helicopter in game. *(Click the picture to watch it on Y
 - In the **Open World**, land in a garage and drop the collective to the bottom, then let go of it. That opens the garage (instead of
   letting go of the shifter in neutral). The same signs you on to an event.
 - No Big Air achievement and no "AirTime" combo on the screen while the Helicopter is fitted.
+- **Multiplayer:** in a room of the [Multiplayer mod](https://github.com/4l3x4nd3r0/HalfGripMods), the others see your
+  helicopter, rotors turning, instead of your car. This needs HalfGripTools 1.0.6+ (Multiplayer needs it anyway).
 
 ## How to fly
 

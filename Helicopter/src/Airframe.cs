@@ -29,7 +29,8 @@ namespace HalfGripHelicopter
 		private static readonly Color SeatColour = new Color(0.33f, 0.24f, 0.17f);
 
 		private CarControllerNew cc;
-		private Flight flight;
+		private System.Func<float> rpmOf;
+		private bool remote;
 		private Transform main;
 		private Transform tail;
 		private readonly List<Renderer> inside = new List<Renderer>();
@@ -153,6 +154,9 @@ namespace HalfGripHelicopter
 			return low < float.MaxValue ? low : body.min.y;
 		}
 
+		/// <summary>What the shape was measured from (the car's body, wheels and head), sent to the other players by <see cref="Remote"/>.</summary>
+		internal Shape.Frame Frame { get { return frame; } }
+
 		internal static Airframe Build(CarControllerNew cc, Flight flight, Bounds body)
 		{
 			GameObject holder = new GameObject("HelicopterAirframe");
@@ -161,8 +165,34 @@ namespace HalfGripHelicopter
 			try
 			{
 				a.cc = cc;
-				a.flight = flight;
+				a.rpmOf = () => flight != null ? flight.Rpm : 0f;
 				a.Make(body);
+			}
+			catch
+			{
+				Destroy(holder);
+				throw;
+			}
+			return a;
+		}
+
+		/// <summary>
+		/// The helicopter on another player's car in a Multiplayer room (the Multiplayer mod's stand-in, an enemy car moved by the
+		/// network), built from the measures that player's own airframe was built from, so it is the same shape: the stand-in is placed
+		/// by that car's position, so its space is that car's space. Outside only: no cabin or panes (hidden by the opaque skin anyway).
+		/// </summary>
+		internal static Airframe BuildRemote(CarControllerNew cc, Shape.Frame measured, System.Func<float> rpm)
+		{
+			GameObject holder = new GameObject("HelicopterAirframeRemote");
+			holder.transform.SetParent(cc.transform, false);
+			Airframe a = holder.AddComponent<Airframe>();
+			try
+			{
+				a.cc = cc;
+				a.rpmOf = rpm;
+				a.remote = true;
+				a.Assemble(Shape.Measure(measured.Length, measured.Width, measured.CentreX, measured.CentreZ, measured.Ground, measured.Head));
+				Mod.Info("Helicopter: another player's helicopter built on '" + cc.name + "', pod " + a.frame.PodLength.ToString("0.00") + " long, hid " + a.hidden.Count + " car renderer(s).");
 			}
 			catch
 			{
@@ -175,6 +205,15 @@ namespace HalfGripHelicopter
 		private void Make(Bounds b)
 		{
 			float ground = Ground(cc, b);
+			Vector3 head = Head(b);
+			Shape.Frame f = Shape.Measure(b.size.z, b.size.x, b.center.x, b.center.z, ground, head);
+			Assemble(f);
+			Mod.Info("Helicopter: airframe built on body " + b.size + " at " + b.center + ", ground " + ground.ToString("0.00") + ", head " + head + (headFound ? "" : " (guessed)") + ", pod " + f.PodLength.ToString("0.00") + " long, " + f.PodHeight.ToString("0.00") + " high, " + f.PodWidth.ToString("0.00") + " wide, layer " + LayerMask.LayerToName(partLayer) + ", hid " + hidden.Count + " car renderer(s), shader '" + (lit != null ? lit.name : "none") + "'.");
+		}
+
+		/// <summary>Hides the car and builds the meshes for a measured frame.</summary>
+		private void Assemble(Shape.Frame f)
+		{
 			partLayer = cc.gameObject.layer;
 			foreach (Renderer r in BodyRenderers(cc))
 			{
@@ -185,11 +224,14 @@ namespace HalfGripHelicopter
 			lit = FindLit();
 			Hide();
 
-			Vector3 head = Head(b);
-			Shape.Frame f = Shape.Measure(b.size.z, b.size.x, b.center.x, b.center.z, ground, head);
 			frame = f;
 			foreach (Piece piece in Shape.Build(f))
 			{
+				bool cabin = piece.Name == "Cabin" || piece.Name == "Panes";
+				if (remote && cabin)
+				{
+					continue;
+				}
 				Transform t = MeshPart(piece);
 				if (piece.Name == "MainRotor")
 				{
@@ -199,14 +241,16 @@ namespace HalfGripHelicopter
 				{
 					tail = t;
 				}
-				else if (piece.Name == "Cabin" || piece.Name == "Panes")
+				else if (cabin)
 				{
 					inside.Add(t.GetComponent<Renderer>());
 				}
 			}
-			RenderPipelineManager.beginCameraRendering += OnCamera;
-			hooked = true;
-			Mod.Info("Helicopter: airframe built on body " + b.size + " at " + b.center + ", ground " + ground.ToString("0.00") + ", head " + head + (headFound ? "" : " (guessed)") + ", pod " + f.PodLength.ToString("0.00") + " long, " + f.PodHeight.ToString("0.00") + " high, " + f.PodWidth.ToString("0.00") + " wide, layer " + LayerMask.LayerToName(partLayer) + ", hid " + hidden.Count + " car renderer(s), shader '" + (lit != null ? lit.name : "none") + "'.");
+			if (inside.Count > 0)
+			{
+				RenderPipelineManager.beginCameraRendering += OnCamera;
+				hooked = true;
+			}
 		}
 
 		/// <summary>
@@ -604,7 +648,7 @@ namespace HalfGripHelicopter
 				nextHide = Time.unscaledTime + 0.5f;
 				Hide();
 			}
-			float rpm = flight != null ? flight.Rpm : 0f;
+			float rpm = rpmOf != null ? rpmOf() : 0f;
 			// Up to 4 turns a second: reads as spinning without strobing at the game's frame rates.
 			angle = (angle + rpm * 1440f * Time.deltaTime) % 360f;
 			if (main != null)
