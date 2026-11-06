@@ -1,9 +1,10 @@
 # HalfGripHelicopter
 
-**Version 0.2.6** · for Half Grip 0.418 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+
+**Version 0.2.7** · for Half Grip 0.419 · needs [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6+
 
 A chassis item, **Helicopter**, that turns your car into a helicopter. Made for the
-[Open World](https://github.com/htubdawg/HalfGripOpenWorld) mod, but it works in any race.
+[Open World](https://github.com/htubdawg/HalfGripOpenWorld) mod: its garages and the Multiplayer mod's garage sell it. Turn on
+`Shop.InRuns` to find it in normal runs too.
 
 ### ▶ Watch it fly
 
@@ -40,7 +41,7 @@ A short showcase of the Helicopter in game. *(Click the picture to watch it on Y
   letting go of the shifter in neutral). The same signs you on to an event.
 - No Big Air achievement and no "AirTime" combo on the screen while the Helicopter is fitted.
 - **Multiplayer:** in a room of the [Multiplayer mod](https://github.com/4l3x4nd3r0/HalfGripMods), the others see your
-  helicopter, rotors turning, instead of your car. This needs HalfGripTools 1.0.6+ (Multiplayer needs it anyway).
+  helicopter, rotors turning, instead of your car.
 
 ## How to fly
 
@@ -69,7 +70,7 @@ the GPS) the same way, using their own links. **CHECK NOW** in the installer loo
 
 ### By hand
 
-Install BepInEx 5 and [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.2+ as its README says. Then copy only the
+Install BepInEx 5 and [HalfGripTools](https://github.com/4l3x4nd3r0/HalfGripTools) 1.0.6+ as its README says. Then copy only the
 `Helicopter` folder into `<game>\BepInEx\HalfGripMods\`, so that `mod.json` sits directly in `HalfGripMods\Helicopter\`, not
 the whole repository download.
 
@@ -82,7 +83,7 @@ the whole repository download.
 | `Flight.TopSpeed` | 140 | Top speed at full stick, game units a second (the car tops out near 100) |
 | `Flight.ClimbRate` | 30 | Climb rate at full collective, game units a second |
 | `Flight.MaxTilt` | 30 | How far the stick tilts the helicopter, degrees |
-| `Flight.TiltResponse` | 3 | How quickly it pitches and banks to follow the stick (lower is gentler; 0.1.8 was 5) |
+| `Flight.TiltResponse` | 3 | How quickly it pitches and banks to follow the stick (lower is gentler) |
 | `Flight.TiltRate` | 30 | The fastest it pitches or banks, degrees a second |
 | `Flight.SpoolSeconds` | 4 | Rotor spin-up time from rest |
 | `Shop.InRuns` | false | Also offer the Helicopter in normal runs (shops and race rewards). Off: only in the Open World and Multiplayer garages |
