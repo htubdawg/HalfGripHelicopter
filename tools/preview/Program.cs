@@ -11,6 +11,7 @@ namespace HalfGripHelicopter
 	/// (or -- --clear out.png: transparent, one pixel per dash pixel, for laying over a screenshot);
 	/// the instrument panel's face as first drawn: -- --panel panel.png; as fitted in the owner's 0.1.7 log with the MiniMap's GPS on the
 	/// right (on its plate): -- --fitted fitted.png;
+	/// the installer's icon (<see cref="LoaderIcon"/>): -- --icon Helicopter/icon.png;
 	/// and the helicopter's shape from outside and from the seat (<see cref="Model"/>):
 	///   dotnet run -c Release --project tools/preview -- --model model.png
 	/// </summary>
@@ -18,6 +19,14 @@ namespace HalfGripHelicopter
 	{
 		private static int Main(string[] args)
 		{
+			if (args.Length > 0 && args[0] == "--icon")
+			{
+				// The installer's icon (Helicopter/icon.png): 64 x 64 art at 2x.
+				Canvas ic = LoaderIcon.Draw();
+				Png.Save(args.Length > 1 ? args[1] : "icon.png", ic.Pixels, ic.Width, ic.Height, 2);
+				Console.WriteLine("wrote icon " + ic.Width * 2 + "x" + ic.Height * 2);
+				return 0;
+			}
 			if (args.Length > 0 && args[0] == "--model")
 			{
 				Model.Sheet(args.Length > 1 ? args[1] : "model.png");

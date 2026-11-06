@@ -131,17 +131,14 @@ Scene dumps: `<refs>/scenedumps/0.418/<Map>/*.txt` (object tree with positions, 
 
 ## Status (keep current)
 
-**Now:** 0.2.5 released on `main` (PR #5, merged). **0.2.6** on `claude/practical-thompson-8lxknd`, **PR #6** open (owner's ask): the Helicopter is
-offered only in the Open World unless `Shop.InRuns` (default false) is on, at `Shop.Price` (default 80; new keys, no migration).
-The item is `disabled` unless `Shop.InRuns` (shops, rewards, unlocks skip it); `Lock` patches the Open World's `Garage.Offered` (by name,
-with the garages link) to lift the flag for that call only (an every-frame check of `MapView.Active` was tried first and dropped:
-the garage is the only Open World reader); the Multiplayer garage is offered it the same way (owner's ask; `Lock.LinkMultiplayer`,
-log `linked to the Multiplayer garage`). Checked: compiles. **Not tested in game.** Owner's test still open: in a normal run
-it no longer shows in shops (on with `Shop.InRuns`); it shows in the Open World's garage at 80 and in the Multiplayer garage.
-Also in 0.2.6 (owner's ask): the garage's car preview shows the helicopter while it is in the chassis slot (`Preview.cs`). No
-garage scene dump exists, so the preview car's layout (scale, wheels in `tires`) is untested: look at the size and placement in
-the owner's screenshot; the log (verbose) says `shown on the garage's preview car '...', body ..., pod ...`.
-Owner: the preview "looks good" and asked for the PR. Next: the owner merges PR #6; then restart the branch from `origin/main`.
+**Now:** 0.2.6 released (PR #6 merged; in jMods). **0.2.7** on `claude/eloquent-thompson-84lgd4` (jMods-wide audit, see
+`htubdawg/jMods` CLAUDE.md): installer icon `Helicopter/icon.png` (128x128, 64x64 art at 2x, clear background like the other jMods
+icons; drawn by `tools/preview/LoaderIcon.cs`, `-- --icon Helicopter/icon.png`; not in `src/`, the game never uses it; owner: the
+glass bubble must wrap round the nose to the outline, no olive rim at the front) and `"icon"` in `mod.json`; `gameVersion` 0.419
+(owner: the game is 0.419; compiles against the 0.419 DLLs in HalfGripRefs, and every member patched by name still exists);
+`tools` 1.0.6 (owner: all mods on the latest); README version line and install text to 0.419 / 1.0.6, intro says where it's sold;
+stale config text dropped (`TopSpeed` "dash shows 1.8 times this": the dials are hidden; `TiltResponse` "0.1.8 used 5").
+**Not tested in game** (no code change beyond config descriptions). Next: owner OKs the icon, PR, merge, release.
 History, 0.2.5: **Owner's report (Multiplayer):**
 other players' helicopters showed as the last car they used, flying. Cause: the Multiplayer mod's stand-in for another player is an
 enemy car dressed only in that player's paint and body index (see *Game facts*); this mod built the helicopter on the local car

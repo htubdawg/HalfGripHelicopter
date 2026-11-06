@@ -14,7 +14,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Art.cs is plain pixel arrays; its Unity types are managed structs (Color32, Mathf). -->
-    <Compile Include="$(Src)/Art.cs;$(Src)/Shape.cs;$(Src)/Panel.cs;Program.cs;Png.cs;Model.cs" />
+    <Compile Include="$(Src)/Art.cs;$(Src)/Shape.cs;$(Src)/Panel.cs;Program.cs;Png.cs;Model.cs;LoaderIcon.cs" />
     <Reference Include="$(Managed)/UnityEngine.CoreModule.dll" />
   </ItemGroup>
 </Project>
